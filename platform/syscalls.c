@@ -1,4 +1,8 @@
+#pragma GCC diagnostic ignored "-Wpedantic"
+#if 0
 #include <sys/stat.h>
+
+#pragma GCC diagnostic ignored "-Wunused-parameter"
  
 enum {
  UART_FR_RXFE = 0x10,
@@ -31,16 +35,16 @@ int _read(int file, char *ptr, int len) {
  for(todo = 1; todo < len; todo++) {
   if(UART_FR(UART0_ADDR) & UART_FR_RXFE) {
    break;
- }
- *ptr++ = UART_DR(UART0_ADDR);
+  }
+  *ptr++ = UART_DR(UART0_ADDR);
  }
  return todo;
 }
  
 char *heap_end = 0;
+extern char heap_low; /* Defined by the linker */
+extern char heap_top; /* Defined by the linker */
 caddr_t _sbrk(int incr) {
- extern char heap_low; /* Defined by the linker */
- extern char heap_top; /* Defined by the linker */
  char *prev_heap_end;
  
  if (heap_end == 0) {
@@ -64,4 +68,5 @@ int _write(int file, char *ptr, int len) {
   UART_DR(UART0_ADDR) = *ptr++;
  }
  return len;
- }
+}
+#endif

@@ -2,14 +2,24 @@
 This is a port of the LwIP to an ARM board without an operating system. The target machine (VersatilePB) has an ARM926EJ-S processor and LAN91C111 ethernet controller. It exists mostly because I couldn't find a working NO_SYS==1 port, but is also a good starting point for building and learning new things ~~*~
 
 # Setup
-The intended execution environment is qemu-system-arm on a Linux host. To build:
+The intended execution environment is qemu-system-arm on a Linux host.
+
+To install the required software on Debian or Ubuntu:
 ```
-git clone https://github.com/tomx4096/baremetal-lwip.git
+sudo apt install gcc-arm-none-eabi make qemu-system-arm
+```
+Or you can download a current gcc-arm compiler:
+```
+wget https://developer.arm.com/-/media/Files/downloads/gnu/12.2.rel1/binrel/arm-gnu-toolchain-12.2.rel1-x86_64-arm-none-eabi.tar.xz
+tar xvJf arm-gnu-toolchain-12.2.rel1-x86_64-arm-none-eabi.tar.xz
+rm arm-gnu-toolchain-12.2.rel1-x86_64-arm-none-eabi.tar.xz
+export PATH=$PWD/arm-gnu-toolchain-12.2.rel1-x86_64-arm-none-eabi/bin:$PATH
+```
+
+To build:
+```
+git clone https://github.com/laroche/baremetal-lwip.git
 cd baremetal-lwip
-wget https://developer.arm.com/-/media/Files/downloads/gnu-rm/7-2017q4/gcc-arm-none-eabi-7-2017-q4-major-linux.tar.bz2
-tar xvjf gcc-arm-none-eabi-7-2017-q4-major-linux.tar.bz2
-mv gcc-arm-none-eabi-7-2017-q4-major-linux gcc
-rm gcc-arm-none-eabi-7-2017-q4-major-linux.tar.bz2
 mkdir bin
 make
 ```
@@ -46,5 +56,6 @@ sudo ./qemu-ifdown2
 * [LwIP for bare metal](http://lwip.wikia.com/wiki/Porting_For_Bare_Metal)
 * [C standard libary on bare metal](https://balau82.wordpress.com/2010/12/16/using-newlib-in-arm-bare-metal-programs/)
 * [LAN91C111 Driver Source](http://www.jk1mly.org/electoronics/nios/) -- a real gem
+   * <https://github.com/ARM-software/CMSIS-Driver/blob/main/ETH/ETH_LAN91C111.c>
 * [Connecting QEMU to a Real Network](https://emreboy.wordpress.com/2012/12/24/connecting-qemu-to-a-real-network/)
 

@@ -22,6 +22,9 @@
 //#include "plugs.h"
 #include "eth_driver.h"
 #include <stdio.h> 
+#include <stdint.h> 
+
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 
 // +--------------------------
 // | Debug printing things
@@ -548,7 +551,9 @@ typedef struct {
 // |
 
 static void sft_loop_delay (int multiplier);
+#if 0
 static void nr_set_multicast (void *hw_base_address);
+#endif
 
 static int r_allocate_tx_packet
         (
@@ -556,6 +561,7 @@ static int r_allocate_tx_packet
         s_lan91c111_state *sls
         );
 
+#if 0
 static int r_lan91c111_detect_phy
         (
         void *hardware_base_address,
@@ -575,6 +581,7 @@ static void r_write_phy_register
         r8 phyreg,
         r16 phydata
         );
+#endif
 
 static r16 r_read_phy_register
         (
@@ -584,8 +591,8 @@ static r16 r_read_phy_register
         );
 
 //TODO .... -tomx
-void nr_delay(int num) {return ;}
-int nr_setirqenable(int num) {return 0;}
+static void nr_delay(int num) {return ;}
+//int nr_setirqenable(int num) {return 0;}
 
 /*
  . Function: r_lan91c111_enable
@@ -618,6 +625,7 @@ void sft_loop_delay (int multiplier)
     }
 }
 
+#if 0
 void nr_set_multicast (void *hw_base_address)
 {
     np_lan91c111 *e = hw_base_address;
@@ -628,6 +636,7 @@ void nr_set_multicast (void *hw_base_address)
     e->bank_3.np_mt4_5 = 0xFFFF;
     e->bank_3.np_mt6_7 = 0xFFFF;
 }
+#endif
 
 // CBV - reset function. This function combines about 3 functions
 // from the original driver: probe, init and reset.
@@ -642,8 +651,6 @@ int nr_lan91c111_reset
         )
 {
     np_lan91c111 *e = hw_base_address;
-    int timeout;
-    r16        status;
     int result = 0;
     s_lan91c111_state *sls = (s_lan91c111_state *)adapter_storage;
 
@@ -876,6 +883,7 @@ int nr_lan91c111_dump_registers
 
 
 
+#if 0
 // +-------------------------------
 // | r_lan91c111_init_phy(hw,phy_out)
 // |
@@ -901,7 +909,6 @@ int r_lan91c111_init_phy
     r16 status = 0;
     r16 i;
     int failed = 0;
-    r16 my_phy_caps; // My PHY capabilities
     r16 my_ad_caps; // My Advertised capabilities        
     r16 rpc_cur_mode = RPC_DEFAULT;
     int result = 0; 
@@ -1048,6 +1055,7 @@ int r_lan91c111_init_phy
 go_home:
     return result;
 }
+#endif
 
 /*------------------------------------------------------------
  . Reads a register from the MII Management serial interface
@@ -1168,6 +1176,7 @@ static r16 r_read_phy_register
     return(phydata);    
 }
 
+#if 0
 /*------------------------------------------------------------
  . Writes a register to the MII Management serial interface
  .-------------------------------------------------------------*/
@@ -1343,7 +1352,9 @@ static int r_lan91c111_detect_phy
 go_home:
     return result;
 }
+#endif
 
+#if 0
 // --------------------------------------
 // Set the LED : CBV - this chip does not
 // allow direct control of the LEDs. So,
@@ -1383,6 +1394,7 @@ int nr_lan91c111_set_led
         e->bank_0.np_rpcr = RPC_DEFAULT;        
     }
 }
+#endif
 
 // --------------------------------------
 // Set loopback mode: pass 0 for off,
@@ -1416,7 +1428,6 @@ int nr_lan91c111_check_for_events
 {
     np_lan91c111 *e = hardware_base_address;
     int frame_length;
-    int frame_length_r16;
     int i;
     int result = 0;
     int watchdog = 50;    // read no more than this many packets
@@ -1430,8 +1441,6 @@ int nr_lan91c111_check_for_events
     int    saved_pointer;
     int    saved_bank;
 
-    s_lan91c111_state *sls = (s_lan91c111_state *)adapter_storage;
-
 
     lan91c111_data_reg_ptr = (__lan91c111_data_word_type__ *)&(e->bank_2.np_data);
 
@@ -1443,7 +1452,7 @@ int nr_lan91c111_check_for_events
     e->bank_2.np_bank = 2;
     saved_pointer = e->bank_2.np_pointer;  
     
-check_for_interrupt:
+/* check_for_interrupt: */
 
     // +--------------------------------------------
     // | We come back here until all the interrupts
@@ -1672,6 +1681,8 @@ go_home:
 }
 
 
+int nr_lan91c111_set_irq(volatile void *hardware_base_address, ns_plugs_adapter_storage *adapter_storage, int irq_onoff);
+
 // +--------------------------------
 // | int r_allocate_tx_packet(np_lan91c111 *e)
 // |
@@ -1752,7 +1763,6 @@ int nr_lan91c111_tx_frame
 
     __lan91c111_data_word_type__ *w; // | walker within frame to transmit
 
-    r16 status;
     int result = 0;
     int old_irq = 0;
 
@@ -1925,6 +1935,7 @@ int nr_lan91c111_set_promiscuous
     else {
         e->bank_0.np_rcr = (RCR_DEFAULT | RCR_PRMS);
     }
+    return 0;
 }
 
 // -----------------------------------------
@@ -1936,7 +1947,7 @@ int nr_lan91c111_set_promiscuous
 
 int nr_lan91c111_set_irq
         (
-        void *hardware_base_address,
+        volatile void *hardware_base_address,
         ns_plugs_adapter_storage *adapter_storage,
         int irq_onoff
         )

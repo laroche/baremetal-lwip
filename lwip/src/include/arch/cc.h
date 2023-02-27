@@ -48,7 +48,7 @@ typedef uintptr_t   mem_ptr_t;
         mch_abort();                        \
     } while (0)
 
-static inline u32_t sys_now(void) {return 0;};
+static inline u32_t sys_now(void) {return 0;}
 
 #endif /* __ARCH_CC_H__ */
 

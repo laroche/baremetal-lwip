@@ -1,26 +1,27 @@
 TOOLCHAIN = arm-none-eabi
-VERSION   = 7.2.1
 COMPILE   = $(TOOLCHAIN)-gcc
 ASSEMBLE  = $(TOOLCHAIN)-as
 ARCHIVE   = $(TOOLCHAIN)-ar
-LINKER    = $(TOOLCHAIN)-ld
+LINKER    = $(TOOLCHAIN)-gcc
 OBJCOPY   = $(TOOLCHAIN)-objcopy
 
-CPU     = arm926ej-s
-LIBC    = gcc/$(TOOLCHAIN)/lib/libc.a   
-LIBGCC  = gcc/lib/gcc/$(TOOLCHAIN)/$(VERSION)/libgcc.a
-LIBCINC = gcc/$(TOOLCHAIN)/include/
-CFLAGS  = -mcpu=$(CPU) -I $(LIBCINC) -I $(PLATFORM_DIR)
-ASFLAGS = -mcpu=$(CPU)
+CFLAGS  = -mcpu=arm926ej-s --specs=nano.specs --specs=nosys.specs -O2 -Wall -Wextra -pedantic -Wno-format -I $(PLATFORM_DIR)
+#CFLAGS += -Wundef -Wwrite-strings -Wold-style-definition -Wunreachable-code -Waggregate-return -Wlogical-op -Wtrampolines
+#CFLAGS += -Wcast-align=strict -Wshadow -Wmissing-prototypes -Wredundant-decls -Wnested-externs -Wcast-qual -Wswitch-default
+#CFLAGS += -Wc90-c99-compat -Wc99-c11-compat -Wconversion
+ASFLAGS = -mcpu=arm926ej-s
+
 QEMU    = qemu-system-arm
 QFLAGS  = -M versatilepb -m 128M -nographic
-QNET    = -net nic -net dump,file=vm0.pcap -net tap,ifname=tap0
+#QNET    = -net nic -net dump,file=vm0.pcap -net tap,ifname=tap0
+QNET    = -net nic -net tap,ifname=tap0
 
 BIN_DIR      = ./bin
 APP_DIR      = ./app
 PLATFORM_DIR = ./platform
 LDSCRIPT     = $(PLATFORM_DIR)/layout.ld
 LINK_TARGET  = $(BIN_DIR)/app.elf
+MAPFILE      = $(BIN_DIR)/app.map
 BIN_TARGET   = $(BIN_DIR)/app.bin
 
 # names of .c and .s source files in app and platform source directories
@@ -61,9 +62,10 @@ $(BIN_DIR)/%.o : %.c
 $(BIN_DIR)/%.o : $(PLATFORM_DIR)/%.s
 	$(ASSEMBLE) -g -o $@ -c $(ASFLAGS) $<
 
+# -Wl,--no-warn-rwx-segments
 $(LINK_TARGET) : $(APP_OBJS)
-	$(LINKER) -nostdlib -T $(LDSCRIPT) $(LWIP_OBJS) \
-    $(APP_OBJS) $(LIBC) $(LIBGCC) -o $(LINK_TARGET)
+	$(LINKER) --specs=nano.specs --specs=nosys.specs -T $(LDSCRIPT) \
+    $(LWIP_OBJS) $(APP_OBJS) -o $(LINK_TARGET) -Wl,-Map=$(MAPFILE)
 
 $(BIN_TARGET) : $(LINK_TARGET)
 	$(OBJCOPY) -O binary $(LINK_TARGET) $(BIN_TARGET)
@@ -72,5 +74,6 @@ clean :
 	rm -f $(BIN_DIR)/*
 
 run : $(BIN_TARGET)
+	@echo "Starting qemu, use \"ctrl-a x\" to exit from qemu:"
 	$(QEMU) $(QFLAGS) $(QNET) -kernel $(BIN_TARGET)
 

@@ -4,6 +4,8 @@
 #include "lwip/etharp.h"
 #include "eth_driver.h"
 
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+
 //versatilepb maps LAN91C111 registers here
 void * const eth0_addr = (void *) 0x10010000;
 
@@ -15,7 +17,9 @@ s_lan91c111_state sls = {.phy_address = 0,
 struct netif netif;
 
 //feed frames from driver to LwIP
-int process_frames(r16 * frame, int frame_len) {
+int
+process_frames(r16 * frame, int frame_len)
+{
   struct pbuf* p = pbuf_alloc(PBUF_RAW, frame_len, PBUF_POOL);
   if(p != NULL) {
     pbuf_take(p, frame, frame_len);
@@ -23,6 +27,7 @@ int process_frames(r16 * frame, int frame_len) {
   if(netif.input(p, &netif) != ERR_OK) {
     pbuf_free(p);
   }
+  return 0;
 }
 
 //transmit frames from LwIP using driver
@@ -53,9 +58,9 @@ netif_set_opts(struct netif *netif)
   return ERR_OK;
 }
 
-void 
-c_entry() {
-
+int
+main(void)
+{
   ip4_addr_t addr;
   ip4_addr_t netmask;
   ip4_addr_t gw;
@@ -77,9 +82,7 @@ c_entry() {
   nr_lan91c111_set_promiscuous(eth0_addr,&sls,1);
 
   while(1) {
-
     nr_lan91c111_check_for_events(eth0_addr, &sls, process_frames);
-
   }
 }
 
