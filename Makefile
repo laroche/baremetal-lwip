@@ -16,7 +16,7 @@ QFLAGS  = -M versatilepb -m 128M -nographic
 #QNET    = -net nic -net dump,file=vm0.pcap -net tap,ifname=tap0
 QNET    = -net nic -net tap,ifname=tap0
 
-BIN_DIR      = ./bin
+BIN_DIR      = ./obj
 APP_DIR      = ./app
 PLATFORM_DIR = ./platform
 LDSCRIPT     = $(PLATFORM_DIR)/layout.ld
@@ -29,7 +29,7 @@ APP_SRC = $(wildcard $(APP_DIR)/*.c)
 PLATFORM_SRC = $(wildcard $(PLATFORM_DIR)/*.c) 
 PLATFORM_ASM = $(wildcard $(PLATFORM_DIR)/*.s) 
 
-#change names of .c and .s files in source dirs to .o files in bin dir
+#change names of .c and .s files in source dirs to .o files in obj dir
 APP_OBJS = $(patsubst $(PLATFORM_DIR)/%.c,$(BIN_DIR)/%.o,$(PLATFORM_SRC)) \
            $(patsubst $(PLATFORM_DIR)/%.s,$(BIN_DIR)/%.o,$(PLATFORM_ASM)) \
            $(patsubst $(APP_DIR)/%.c,$(BIN_DIR)/%.o,$(APP_SRC))

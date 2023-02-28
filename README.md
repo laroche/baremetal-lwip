@@ -20,7 +20,7 @@ To build:
 ```
 git clone https://github.com/laroche/baremetal-lwip.git
 cd baremetal-lwip
-mkdir bin
+mkdir obj
 make
 ```
 Next, use this script to bring up a TAP interface to create a bridge between Linux and QEMU's network interfaces. Change the ethernet interface name and settings in the script to match yours.
