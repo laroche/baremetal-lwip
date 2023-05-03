@@ -7,10 +7,11 @@
 # some constants specific to the local host ? change to suit your host
 #
 
-ETHNAME='enp0s31f6'
+ETHNAME='eth0'
 ETH0IP=10.0.2.15
-GATEWAY=10.0.2.2
+NETMASK=255.255.0.0
 BROADCAST=10.0.2.255
+GATEWAY=10.0.2.2
 
 #
 # First take eth0 down, then bring it up with IP 0.0.0.0
@@ -40,10 +41,10 @@ brctl stp br0 off
 #
 # Bring up the bridge with ETH0IP and add the default route
 #
-ifconfig br0 $ETH0IP netmask 255.255.0.0 broadcast $BROADCAST
+ifconfig br0 $ETH0IP netmask $NETMASK broadcast $BROADCAST
 route add default gw $GATEWAY
 
 #
-# stop firewall ? comment this out if you don?t use Firestarter
+# stop firewall ? comment this out if you don't use Firestarter
 #
 #service firestarter stop

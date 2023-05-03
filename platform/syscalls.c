@@ -1,9 +1,7 @@
-#pragma GCC diagnostic ignored "-Wpedantic"
-#if 0
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+
 #include <sys/stat.h>
 
-#pragma GCC diagnostic ignored "-Wunused-parameter"
- 
 enum {
  UART_FR_RXFE = 0x10,
  UART_FR_TXFF = 0x20,
@@ -69,4 +67,3 @@ int _write(int file, char *ptr, int len) {
  }
  return len;
 }
-#endif

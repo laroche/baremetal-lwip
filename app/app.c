@@ -1,10 +1,9 @@
 #include <stdio.h>
 #include "lwip/netif.h"
+#include "lwip/dhcp.h"
 #include "lwip/init.h"
 #include "lwip/etharp.h"
 #include "eth_driver.h"
-
-#pragma GCC diagnostic ignored "-Wunused-parameter"
 
 /* versatilepb maps LAN91C111 registers here */
 static void * const eth0_addr = (void * const) 0x10010000UL;
@@ -30,10 +29,11 @@ static int process_frames(r16 * frame, int frame_len)
 }
 
 /* transmit frames from LwIP using driver */
-static err_t netif_output(struct netif *netif, struct pbuf *p)
+static err_t netif_output(struct netif *netif __unused, struct pbuf *p)
 {
   unsigned char mac_send_buffer[p->tot_len];
-  pbuf_copy_partial(p, (void*)mac_send_buffer, p->tot_len, 0);
+
+  pbuf_copy_partial(p, mac_send_buffer, p->tot_len, 0);
   nr_lan91c111_tx_frame(eth0_addr, &sls, mac_send_buffer, p->tot_len);
   return ERR_OK;
 }
@@ -57,21 +57,24 @@ static err_t netif_set_opts(struct netif *netif)
 
 int main(void)
 {
-  ip4_addr_t addr, netmask, gw;
+  ip4_addr_t ipaddr, netmask, gw;
 
-  IP4_ADDR(&addr, 10, 0, 2, 99);
+  srand((unsigned int)time(0));
+
+  lwip_init();
+
+  nr_lan91c111_reset(eth0_addr, &sls, &sls);
+  nr_lan91c111_set_promiscuous(eth0_addr, &sls, 1);
+
+  IP4_ADDR(&ipaddr, 10, 0, 2, 99);
   IP4_ADDR(&netmask, 255, 255, 0, 0);
   IP4_ADDR(&gw, 10, 0, 0, 1);
 
-  lwip_init();
-  netif_add(&netif, &addr, &netmask, &gw, NULL, netif_set_opts, netif_input);
+  netif_add(&netif, &ipaddr, &netmask, &gw, NULL, netif_set_opts, netif_input);
   netif.name[0] = 'e';
   netif.name[1] = '0';
   netif_set_default(&netif);
   netif_set_up(&netif);
-
-  nr_lan91c111_reset(eth0_addr, &sls, &sls);
-  nr_lan91c111_set_promiscuous(eth0_addr, &sls, 1);
 
   while (1) {
     nr_lan91c111_check_for_events(eth0_addr, &sls, process_frames);

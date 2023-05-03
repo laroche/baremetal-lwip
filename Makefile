@@ -14,7 +14,8 @@ ASFLAGS = -mcpu=arm926ej-s
 QEMU    = qemu-system-arm
 QFLAGS  = -M versatilepb -m 128M -nographic
 #QNET    = -net nic -net dump,file=vm0.pcap -net tap,ifname=tap0
-QNET    = -net nic -net tap,ifname=tap0
+#QNET    = -net nic -net tap,ifname=tap0
+QNET    = -net nic -net user
 
 BIN_DIR      = ./obj
 APP_DIR      = ./app
@@ -39,7 +40,7 @@ LWIP_OBJS = $(addprefix $(BIN_DIR)/,\
               init.o def.o dns.o inet_chksum.o ip.o mem.o memp.o netif.o \
               pbuf.o raw.o stats.o sys.o altcp.o altcp_alloc.o altcp_tcp.o \
               tcp.o tcp_in.o tcp_out.o timeouts.o udp.o icmp.o ip4.o \
-              ip4_addr.o ip4_frag.o ethernet.o etharp.o)
+              ip4_addr.o ip4_frag.o ethernet.o etharp.o acd.o dhcp.o)
 
 LWIP_INCS = -I lwip/src -I lwip/src/include/ -I lwip/src/api/\
             -I lwip/src/core -I lwip/src/netif -I lwip/src/core/ipv4\
@@ -75,5 +76,5 @@ clean :
 
 run : $(BIN_TARGET)
 	@echo "Starting qemu, use \"ctrl-a x\" to exit from qemu:"
-	$(QEMU) $(QFLAGS) $(QNET) -kernel $(BIN_TARGET)
+	QEMU_AUDIO_DRV=none $(QEMU) $(QFLAGS) $(QNET) -kernel $(BIN_TARGET)
 
