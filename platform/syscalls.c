@@ -5,7 +5,7 @@
 enum {
  UART_FR_RXFE = 0x10,
  UART_FR_TXFF = 0x20,
- UART0_ADDR = 0x101f1000,
+ UART0_ADDR = 0x101f1000
 };
  
 #define UART_DR(baseaddr) (*(unsigned int *)(baseaddr))
