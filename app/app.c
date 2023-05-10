@@ -34,10 +34,10 @@ static int process_frames (r16 *frame, int frame_len)
   struct pbuf *p = pbuf_alloc(PBUF_RAW, frame_len, PBUF_POOL);
   if (NULL != p) {
     if (ERR_OK != pbuf_take(p, frame, frame_len)) {
-      pbuf_free(p);
+      (void) pbuf_free(p);
       LINK_STATS_INC(link.drop);
     } else if (ERR_OK != netif.input(p, &netif)) {
-      pbuf_free(p);
+      (void) pbuf_free(p);
       LINK_STATS_INC(link.drop);
     }
   } else {
@@ -54,7 +54,7 @@ static err_t netif_output (struct netif *netif __unused, struct pbuf *p)
 
   (void) netif;
   LINK_STATS_INC(link.xmit);
-  pbuf_copy_partial(p, mac_send_buffer, p->tot_len, 0);
+  (void) pbuf_copy_partial(p, mac_send_buffer, p->tot_len, 0);
   nr_lan91c111_tx_frame(eth0_addr, &sls, mac_send_buffer, p->tot_len);
 #if 0
   for (q = p; q != NULL; q = q->next) {
@@ -143,8 +143,8 @@ static err_t netif_set_opts (struct netif *netif)
 #if LWIP_NETIF_HOSTNAME
   netif->hostname = "lwip";
 #endif
-  netif->linkoutput = netif_output;
-  netif->output = etharp_output;
+  netif->linkoutput = &netif_output;
+  netif->output = &etharp_output;
   netif->mtu = 1500U; 					/* u16 in lwip */
   if (0U != dev->mtu) {
     netif->mtu = dev->mtu;
@@ -158,7 +158,7 @@ static err_t netif_set_opts (struct netif *netif)
   | NETIF_FLAG_MLD6
 #endif
 #endif
-  LWIP_ASSERT("Ethernet hwaddr (MAC) strange size", sizeof(dev->hwaddr) == 6);
+  LWIP_ASSERT("Ethernet hwaddr (MAC) strange size", sizeof(dev->hwaddr) == 6U);
   LWIP_ASSERT("Ethernet hwaddr (MAC) from zero device strange size", sizeof(dev->hwaddr) == sizeof(zero_network_hwaddr));
   netif->hwaddr_len = 6U;
   netif->hwaddr[0] = 0x00U;
@@ -201,7 +201,7 @@ static void netdev_config (netdev_config_t *dev)
   } else {
     /* XXX error out, not a valid configuration */
   }
-  netif_add(&netif, &dev->ipaddr, &dev->netmask, &dev->gw, NULL, netif_set_opts, netif_input);
+  (void) netif_add(&netif, &dev->ipaddr, &dev->netmask, &dev->gw, NULL, netif_set_opts, netif_input);
   netif.name[0] = 'e';			/* two chars within lwip */
   netif.name[1] = '0';
 #if LWIP_NETIF_STATUS_CALLBACK
@@ -245,12 +245,12 @@ int main (void)
   net_config_read();
 
   nr_lan91c111_reset(eth0_addr, &sls, &sls);
-  nr_lan91c111_set_promiscuous(eth0_addr, &sls, 1);
+  (void) nr_lan91c111_set_promiscuous(eth0_addr, &sls, 1);
 
   netdev_config(&e0);
 
   while (1) {
-    nr_lan91c111_check_for_events(eth0_addr, &sls, process_frames);
+    (void) nr_lan91c111_check_for_events(eth0_addr, &sls, process_frames);
     sys_check_timeouts();
   }
 }
