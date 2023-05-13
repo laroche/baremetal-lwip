@@ -48,7 +48,6 @@ sudo ./qemu-ifdown2
 * Target a more modern board and eventually real hardware..versatilepb was chosen because it is used in many QEMU tutorials
 * Add an abstraction layer so swapping ethernet drivers is cleaner
 * Implement system timer
-* Clean bss on startup
 
 # Sources
 * [LAN91C111 Datasheet](http://ww1.microchip.com/downloads/en/DeviceDoc/00002276A.pdf) 
