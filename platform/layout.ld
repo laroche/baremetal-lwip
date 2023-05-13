@@ -6,14 +6,15 @@ SECTIONS
   *(.text)
   *(.rodata)
  }
+ . = ALIGN(4);
  .rw : {
   *(.data)
+  *(COMMON)
+  . = ALIGN(4);
   __bss_start__ = .;
   *(.bss)
-  __bss_end__ = .;
-  *(COMMON)
  }
- . = ALIGN(8);
+ . = ALIGN(4);
  end = .;
  heap_low = .; /* for _sbrk */
  . = . + 0x10000; /* 64kB of heap memory */
