@@ -65,7 +65,7 @@ $(BIN_DIR)/%.o : $(PLATFORM_DIR)/%.s
 
 # -Wl,--no-warn-rwx-segments
 $(LINK_TARGET) : $(APP_OBJS)
-	$(LINKER) --specs=nano.specs --specs=nosys.specs -T $(LDSCRIPT) \
+	$(LINKER) --specs=nano.specs --specs=nosys.specs -nostartfiles -T $(LDSCRIPT) -g \
     $(LWIP_OBJS) $(APP_OBJS) -o $(LINK_TARGET) -Wl,-Map=$(MAPFILE)
 
 $(BIN_TARGET) : $(LINK_TARGET)
