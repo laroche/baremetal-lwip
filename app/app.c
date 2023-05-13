@@ -236,7 +236,7 @@ static void netdev_config (netdev_config_t *dev)
 #endif
 }
 
-int main (void)
+void start_lwip(void)
 {
   srand((unsigned int)time(0));
 
