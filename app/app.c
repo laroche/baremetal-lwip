@@ -29,7 +29,22 @@ static struct dhcp netif_dhcp;
 #if LWIP_NETIF_STATUS_CALLBACK
 static void netif_status_callback (struct netif *netif)
 {
-  printf("netif status changed %s\n", ip4addr_ntoa(netif_ip4_addr(netif)));
+  if (netif_is_up(netif)) {
+    printf("status_callback==UP, local interface IP is %s\n", ip4addr_ntoa(netif_ip4_addr(netif)));
+  } else {
+    printf("status_callback==DOWN\n");
+  }
+}
+#endif
+
+#if LWIP_NETIF_LINK_CALLBACK
+static void link_callback (struct netif *netif)
+{
+  if (netif_is_link_up(netif)) {
+    printf("link_callback==UP\n");
+  } else {
+    printf("link_callback==DOWN\n");
+  }
 }
 #endif
 
