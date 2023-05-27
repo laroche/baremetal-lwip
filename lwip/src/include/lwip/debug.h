@@ -139,6 +139,8 @@
 #undef LWIP_DEBUG
 #endif
 
+#define LWIP_DEBUG
+
 #ifdef LWIP_DEBUG
 #define LWIP_DEBUG_ENABLED(debug) (((debug) & LWIP_DBG_ON) && \
                                    ((debug) & LWIP_DBG_TYPES_ON) && \
