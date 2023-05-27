@@ -143,6 +143,35 @@ acd_add(struct netif *netif, struct acd *acd,
 
 /**
  * @ingroup acd
+ * Remvoe ACD client from the client list
+ *
+ * @param netif network interface from which to remove the acd client
+ * @param acd   acd module to be removed from the list
+ */
+void
+acd_remove(struct netif *netif, struct acd *acd)
+{
+  struct acd *acd2, *prev = NULL;
+
+  LWIP_ASSERT_CORE_LOCKED();
+
+  for (acd2 = netif->acd_list; acd2 != NULL; acd2 = acd2->next) {
+    if (acd2 == acd) {
+      if (prev) {
+        prev->next = acd->next;
+      } else {
+        netif->acd_list = acd->next;
+      }
+      return;
+    }
+    prev = acd2;
+  }
+  LWIP_ASSERT(("acd_remove(): acd not on list\n"), 0);
+}
+
+
+/**
+ * @ingroup acd
  * Start ACD client
  *
  * @param netif   network interface on which to start the acd client
@@ -257,8 +286,8 @@ acd_tmr(void)
             if (acd->sent_num == 0) {
               acd->state = ACD_STATE_ANNOUNCING;
 
-              /* let acd user know that the address is good and can be used */
-              acd->acd_conflict_callback(netif, ACD_IP_OK);
+              /* reset conflict count to ensure fast re-probing after announcing */
+              acd->num_conflicts = 0;
 
               LWIP_DEBUGF(ACD_DEBUG | LWIP_DBG_TRACE | LWIP_DBG_STATE,
                     ("acd_tmr(): changing state to ANNOUNCING: %"U16_F".%"U16_F".%"U16_F".%"U16_F"\n",
@@ -280,6 +309,9 @@ acd_tmr(void)
                     ("acd_tmr(): changing state to ONGOING: %"U16_F".%"U16_F".%"U16_F".%"U16_F"\n",
                      ip4_addr1_16(&acd->ipaddr), ip4_addr2_16(&acd->ipaddr),
                      ip4_addr3_16(&acd->ipaddr), ip4_addr4_16(&acd->ipaddr)));
+
+              /* finally, let acd user know that the address is good and can be used */
+              acd->acd_conflict_callback(netif, ACD_IP_OK);
             }
           }
           break;
@@ -319,7 +351,7 @@ acd_restart(struct netif *netif, struct acd *acd)
 
   /* if we tried more then MAX_CONFLICTS we must limit our rate for
    * acquiring and probing addresses. compliant to RFC 5227 Section 2.1.1 */
-  if (acd->num_conflicts > MAX_CONFLICTS) {
+  if (acd->num_conflicts >= MAX_CONFLICTS) {
     acd->state = ACD_STATE_RATE_LIMIT;
     acd->ttw = (u16_t)(RATE_LIMIT_INTERVAL * ACD_TICKS_PER_SECOND);
     LWIP_DEBUGF(ACD_DEBUG | LWIP_DBG_TRACE | LWIP_DBG_STATE | LWIP_DBG_LEVEL_WARNING,
@@ -375,10 +407,10 @@ acd_arp_reply(struct netif *netif, struct etharp_hdr *hdr)
          * OR
          * ip.dst == ipaddr && hw.src != own hwaddr (someone else is probing it)
          */
-        if ((ip4_addr_cmp(&sipaddr, &acd->ipaddr)) ||
+        if ((ip4_addr_eq(&sipaddr, &acd->ipaddr)) ||
             (ip4_addr_isany_val(sipaddr) &&
-             ip4_addr_cmp(&dipaddr, &acd->ipaddr) &&
-             !eth_addr_cmp(&netifaddr, &hdr->shwaddr))) {
+             ip4_addr_eq(&dipaddr, &acd->ipaddr) &&
+             !eth_addr_eq(&netifaddr, &hdr->shwaddr))) {
           LWIP_DEBUGF(ACD_DEBUG | LWIP_DBG_TRACE | LWIP_DBG_STATE | LWIP_DBG_LEVEL_WARNING,
                       ("acd_arp_reply(): Probe Conflict detected\n"));
           acd_restart(netif, acd);
@@ -392,8 +424,8 @@ acd_arp_reply(struct netif *netif, struct etharp_hdr *hdr)
          * in any state we have a conflict if
          * ip.src == ipaddr && hw.src != own hwaddr (someone is using our address)
          */
-        if (ip4_addr_cmp(&sipaddr, &acd->ipaddr) &&
-            !eth_addr_cmp(&netifaddr, &hdr->shwaddr)) {
+        if (ip4_addr_eq(&sipaddr, &acd->ipaddr) &&
+            !eth_addr_eq(&netifaddr, &hdr->shwaddr)) {
           LWIP_DEBUGF(ACD_DEBUG | LWIP_DBG_TRACE | LWIP_DBG_STATE | LWIP_DBG_LEVEL_WARNING,
                       ("acd_arp_reply(): Conflicting ARP-Packet detected\n"));
           acd_handle_arp_conflict(netif, acd);
@@ -427,7 +459,7 @@ acd_handle_arp_conflict(struct netif *netif, struct acd *acd)
      the netif but the LL address is still open in the background. */
 
   if (acd->state == ACD_STATE_PASSIVE_ONGOING) {
-    /* Imediatly back off on a conflict. */
+    /* Immediately back off on a conflict. */
     LWIP_DEBUGF(ACD_DEBUG | LWIP_DBG_TRACE | LWIP_DBG_STATE,
       ("acd_handle_arp_conflict(): conflict when we are in passive mode -> back off\n"));
     acd_stop(acd);
@@ -510,7 +542,7 @@ acd_netif_ip_addr_changed(struct netif *netif, const ip_addr_t *old_addr,
 
   ACD_FOREACH(acd, netif->acd_list) {
     /* Find ACD module of old address */
-    if(ip4_addr_cmp(&acd->ipaddr, ip_2_ip4(old_addr))) {
+    if(ip4_addr_eq(&acd->ipaddr, ip_2_ip4(old_addr))) {
       /* Did we change from a LL address to a routable address? */
       if (ip_addr_islinklocal(old_addr) && !ip_addr_islinklocal(new_addr)) {
         LWIP_DEBUGF(ACD_DEBUG | LWIP_DBG_TRACE | LWIP_DBG_STATE,

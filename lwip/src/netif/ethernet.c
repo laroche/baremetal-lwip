@@ -67,7 +67,7 @@ const struct eth_addr ethzero = {{0, 0, 0, 0, 0, 0}};
  * @ingroup lwip_nosys
  * Process received ethernet frames. Using this function instead of directly
  * calling ip_input and passing ARP frames through etharp in ethernetif_input,
- * the ARP cache is protected from concurrent access.\n
+ * the ARP cache is protected from concurrent access.<br>
  * Don't call directly, pass to netif_add() and call netif->input().
  *
  * @param p the received packet, p->payload pointing to the ethernet header
@@ -94,10 +94,6 @@ ethernet_input(struct pbuf *p, struct netif *netif)
     ETHARP_STATS_INC(etharp.drop);
     MIB2_STATS_NETIF_INC(netif, ifinerrors);
     goto free_and_return;
-  }
-
-  if (p->if_idx == NETIF_NO_INDEX) {
-    p->if_idx = netif_get_index(netif);
   }
 
   /* points to packet payload, which starts with an Ethernet header */
@@ -143,6 +139,10 @@ ethernet_input(struct pbuf *p, struct netif *netif)
   netif = LWIP_ARP_FILTER_NETIF_FN(p, netif, lwip_htons(type));
 #endif /* LWIP_ARP_FILTER_NETIF*/
 
+  if (p->if_idx == NETIF_NO_INDEX) {
+    p->if_idx = netif_get_index(netif);
+  }
+
   if (ethhdr->dest.addr[0] & 1) {
     /* this might be a multicast or broadcast packet */
     if (ethhdr->dest.addr[0] == LL_IP4_MULTICAST_ADDR_0) {
@@ -179,7 +179,7 @@ ethernet_input(struct pbuf *p, struct netif *netif)
         LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE | LWIP_DBG_LEVEL_WARNING,
                     ("ethernet_input: IPv4 packet dropped, too short (%"U16_F"/%"U16_F")\n",
                      p->tot_len, next_hdr_offset));
-        LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE, ("Can't move over header in packet"));
+        LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE, ("Can't move over header in packet\n"));
         goto free_and_return;
       } else {
         /* pass to IP layer */
@@ -196,7 +196,7 @@ ethernet_input(struct pbuf *p, struct netif *netif)
         LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE | LWIP_DBG_LEVEL_WARNING,
                     ("ethernet_input: ARP response packet dropped, too short (%"U16_F"/%"U16_F")\n",
                      p->tot_len, next_hdr_offset));
-        LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE, ("Can't move over header in packet"));
+        LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE, ("Can't move over header in packet\n"));
         ETHARP_STATS_INC(etharp.lenerr);
         ETHARP_STATS_INC(etharp.drop);
         goto free_and_return;

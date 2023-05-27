@@ -398,14 +398,20 @@ struct netif {
 #if LWIP_LOOPBACK_MAX_PBUFS
   u16_t loop_cnt_current;
 #endif /* LWIP_LOOPBACK_MAX_PBUFS */
+#if LWIP_NETIF_LOOPBACK_MULTITHREADING
+  /* Used if the original scheduling failed. */
+  u8_t reschedule_poll;
+#endif /* LWIP_NETIF_LOOPBACK_MULTITHREADING */
 #endif /* ENABLE_LOOPBACK */
 };
 
 #if LWIP_CHECKSUM_CTRL_PER_NETIF
 #define NETIF_SET_CHECKSUM_CTRL(netif, chksumflags) do { \
   (netif)->chksum_flags = chksumflags; } while(0)
-#define IF__NETIF_CHECKSUM_ENABLED(netif, chksumflag) if (((netif) == NULL) || (((netif)->chksum_flags & (chksumflag)) != 0))
+#define NETIF_CHECKSUM_ENABLED(netif, chksumflag) (((netif) == NULL) || (((netif)->chksum_flags & (chksumflag)) != 0))
+#define IF__NETIF_CHECKSUM_ENABLED(netif, chksumflag) if NETIF_CHECKSUM_ENABLED(netif, chksumflag)
 #else /* LWIP_CHECKSUM_CTRL_PER_NETIF */
+#define NETIF_CHECKSUM_ENABLED(netif, chksumflag) 0
 #define NETIF_SET_CHECKSUM_CTRL(netif, chksumflags)
 #define IF__NETIF_CHECKSUM_ENABLED(netif, chksumflag)
 #endif /* LWIP_CHECKSUM_CTRL_PER_NETIF */
@@ -463,7 +469,7 @@ void netif_set_gw(struct netif *netif, const ip4_addr_t *gw);
 
 #define netif_set_flags(netif, set_flags)     do { (netif)->flags = (u8_t)((netif)->flags |  (set_flags)); } while(0)
 #define netif_clear_flags(netif, clr_flags)   do { (netif)->flags = (u8_t)((netif)->flags & (u8_t)(~(clr_flags) & 0xff)); } while(0)
-#define netif_is_flag_set(nefif, flag)        (((netif)->flags & (flag)) != 0)
+#define netif_is_flag_set(netif, flag)        (((netif)->flags & (flag)) != 0)
 
 void netif_set_up(struct netif *netif);
 void netif_set_down(struct netif *netif);
@@ -496,14 +502,18 @@ void netif_set_link_callback(struct netif *netif, netif_status_callback_fn link_
 #endif /* LWIP_NETIF_HOSTNAME */
 
 #if LWIP_IGMP
-/** @ingroup netif */
+/** @ingroup netif
+ * Set igmp mac filter function for a netif. */
 #define netif_set_igmp_mac_filter(netif, function) do { if((netif) != NULL) { (netif)->igmp_mac_filter = function; }}while(0)
+/** Get the igmp mac filter function for a netif. */
 #define netif_get_igmp_mac_filter(netif) (((netif) != NULL) ? ((netif)->igmp_mac_filter) : NULL)
 #endif /* LWIP_IGMP */
 
 #if LWIP_IPV6 && LWIP_IPV6_MLD
-/** @ingroup netif */
+/** @ingroup netif
+ * Set mld mac filter function for a netif. */
 #define netif_set_mld_mac_filter(netif, function) do { if((netif) != NULL) { (netif)->mld_mac_filter = function; }}while(0)
+/** Get the mld mac filter function for a netif. */
 #define netif_get_mld_mac_filter(netif) (((netif) != NULL) ? ((netif)->mld_mac_filter) : NULL)
 #define netif_mld_mac_filter(netif, addr, action) do { if((netif) && (netif)->mld_mac_filter) { (netif)->mld_mac_filter((netif), (addr), (action)); }}while(0)
 #endif /* LWIP_IPV6 && LWIP_IPV6_MLD */
@@ -583,8 +593,8 @@ typedef u16_t netif_nsc_reason_t;
 #define LWIP_NSC_NETIF_REMOVED            0x0002
 /** link changed */
 #define LWIP_NSC_LINK_CHANGED             0x0004
-/** netif administrative status changed.\n
-  * up is called AFTER netif is set up.\n
+/** netif administrative status changed.<br>
+  * up is called AFTER netif is set up.<br>
   * down is called BEFORE the netif is actually set down. */
 #define LWIP_NSC_STATUS_CHANGED           0x0008
 /** IPv4 address has changed */
@@ -599,6 +609,8 @@ typedef u16_t netif_nsc_reason_t;
 #define LWIP_NSC_IPV6_SET                 0x0100
 /** IPv6 address state has changed */
 #define LWIP_NSC_IPV6_ADDR_STATE_CHANGED  0x0200
+/** IPv4 settings: valid address set, application may start to communicate */
+#define LWIP_NSC_IPV4_ADDR_VALID          0x0400
 
 /** @ingroup netif
  * Argument supplied to netif_ext_callback_fn.

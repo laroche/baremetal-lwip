@@ -41,6 +41,8 @@
 #define LWIP_UNIX_MACH
 #elif defined __OpenBSD__
 #define LWIP_UNIX_OPENBSD
+#elif defined __FreeBSD_kernel__ && __GLIBC__
+#define LWIP_UNIX_KFREEBSD
 #elif defined __CYGWIN__
 #define LWIP_UNIX_CYGWIN
 #elif defined __GNU__
@@ -52,11 +54,12 @@
 
 #define LWIP_ERRNO_INCLUDE <errno.h>
 
-#if defined(LWIP_UNIX_LINUX) || defined(LWIP_UNIX_HURD)
+#if defined(LWIP_UNIX_LINUX) || defined(LWIP_UNIX_HURD) || defined(LWIP_UNIX_KFREEBSD)
 #define LWIP_ERRNO_STDINCLUDE	1
 #endif
 
-#define LWIP_RAND() ((u32_t)rand())
+extern unsigned int lwip_port_rand(void);
+#define LWIP_RAND() (lwip_port_rand())
 
 /* different handling for unit test, normally not needed */
 #ifdef LWIP_NOASSERT_ON_ERROR

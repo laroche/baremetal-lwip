@@ -48,7 +48,6 @@ extern "C" {
 
 #if LWIP_MDNS_RESPONDER
 
-#define MDNS_DOMAIN_MAXLEN 256
 #define MDNS_READNAME_ERROR 0xFFFF
 #define NUM_DOMAIN_OFFSETS 10
 
@@ -72,16 +71,24 @@ extern "C" {
 #define MDNS_PROBE_MAX_CONFLICTS_TIME_WINDOW        10000
 #define MDNS_PROBE_MAX_CONFLICTS_TIMEOUT            5000
 
-/* Domain structs - also visible for unit tests */
-
-struct mdns_domain {
-  /* Encoded domain name */
-  u8_t name[MDNS_DOMAIN_MAXLEN];
-  /* Total length of domain name, including zero */
-  u16_t length;
-  /* Set if compression of this domain is not allowed */
-  u8_t skip_compression;
+#if LWIP_MDNS_SEARCH
+/** Description of a search request */
+struct mdns_request {
+  /** Name of service, like 'myweb' */
+  char name[MDNS_LABEL_MAXLEN + 1];
+  /** Type of service, like '_http' or '_services._dns-sd' */
+  struct mdns_domain service;
+  /** Callback function called for each response */
+  search_result_fn_t result_fn;
+  void *arg;
+  /** Protocol, TCP or UDP */
+  u16_t proto;
+  /** Query type (PTR, SRV, ...) */
+  u8_t qtype;
+  /** PTR only request. */
+  u16_t only_ptr;
 };
+#endif
 
 /** Description of a service */
 struct mdns_service {
@@ -136,7 +143,7 @@ struct mdns_outmsg {
   /** If legacy query. (tx_id needed, and write
    *  question again in reply before answer) */
   u8_t legacy_query;
-  /** If the query is a probe msg we need to respond immediatly. Independent of
+  /** If the query is a probe msg we need to respond immediately. Independent of
    *  the QU or QM flag. */
   u8_t probe_query_recv;
   /* Question bitmask for host information */
@@ -149,6 +156,10 @@ struct mdns_outmsg {
   u8_t host_reverse_v6_replies;
   /* Reply bitmask per service */
   u8_t serv_replies[MDNS_MAX_SERVICES];
+#ifdef LWIP_MDNS_SEARCH
+  /** Search query to send */
+  struct mdns_request *query;
+#endif
 };
 
 /** Delayed msg info */
@@ -184,7 +195,7 @@ typedef enum {
   MDNS_STATE_ANNOUNCING,
   /* Probing and announcing completed */
   MDNS_STATE_COMPLETE
-} acd_state_enum_t;
+} mdns_resp_state_enum_t;
 
 /** Description of a host/netif */
 struct mdns_host {
@@ -195,7 +206,7 @@ struct mdns_host {
   /** Number of probes/announces sent for the current name */
   u8_t sent_num;
   /** State of the mdns responder */
-  acd_state_enum_t state;
+  mdns_resp_state_enum_t state;
 #if LWIP_IPV4
   /** delayed msg struct for IPv4 */
   struct mdns_delayed_msg ipv4;

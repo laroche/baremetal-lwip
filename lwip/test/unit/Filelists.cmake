@@ -18,6 +18,7 @@ set(LWIP_TESTFILES
 	${LWIP_TESTDIR}/api/test_sockets.c
 	${LWIP_TESTDIR}/arch/sys_arch.c
 	${LWIP_TESTDIR}/core/test_def.c
+	${LWIP_TESTDIR}/core/test_dns.c
 	${LWIP_TESTDIR}/core/test_mem.c
 	${LWIP_TESTDIR}/core/test_netif.c
 	${LWIP_TESTDIR}/core/test_pbuf.c
@@ -30,6 +31,8 @@ set(LWIP_TESTFILES
 	${LWIP_TESTDIR}/mqtt/test_mqtt.c
 	${LWIP_TESTDIR}/tcp/tcp_helper.c
 	${LWIP_TESTDIR}/tcp/test_tcp_oos.c
+	${LWIP_TESTDIR}/tcp/test_tcp_state.c
 	${LWIP_TESTDIR}/tcp/test_tcp.c
 	${LWIP_TESTDIR}/udp/test_udp.c
+	${LWIP_TESTDIR}/ppp/test_pppos.c
 )

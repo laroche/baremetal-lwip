@@ -52,9 +52,6 @@
 
 #if LWIP_MDNS_RESPONDER
 
-/* Payload size allocated for each outgoing UDP packet */
-#define OUTPACKET_SIZE 500
-
 /* Function prototypes */
 static void mdns_clear_outmsg(struct mdns_outmsg *outmsg);
 
@@ -93,7 +90,7 @@ mdns_add_question(struct mdns_outpacket *outpkt, struct mdns_domain *domain,
 
   if (!outpkt->pbuf) {
     /* If no pbuf is active, allocate one */
-    outpkt->pbuf = pbuf_alloc(PBUF_TRANSPORT, OUTPACKET_SIZE, PBUF_RAM);
+    outpkt->pbuf = pbuf_alloc(PBUF_TRANSPORT, MDNS_OUTPUT_PACKET_SIZE, PBUF_RAM);
     if (!outpkt->pbuf) {
       return ERR_MEM;
     }
@@ -166,7 +163,7 @@ mdns_add_answer(struct mdns_outpacket *reply, struct mdns_domain *domain,
 
   if (!reply->pbuf) {
     /* If no pbuf is active, allocate one */
-    reply->pbuf = pbuf_alloc(PBUF_TRANSPORT, OUTPACKET_SIZE, PBUF_RAM);
+    reply->pbuf = pbuf_alloc(PBUF_TRANSPORT, MDNS_OUTPUT_PACKET_SIZE, PBUF_RAM);
     if (!reply->pbuf) {
       return ERR_MEM;
     }
@@ -549,6 +546,28 @@ mdns_add_probe_questions_to_outpacket(struct mdns_outpacket *outpkt, struct mdns
   return ERR_OK;
 }
 
+#if LWIP_MDNS_SEARCH
+static err_t
+mdns_add_query_question_to_outpacket(struct mdns_outpacket *outpkt, struct mdns_outmsg *msg)
+{
+  err_t res;
+  /* Write legacy query question */
+  if(msg->query) {
+    struct mdns_request *req = msg->query;
+    struct mdns_domain dom;
+    /* Build question domain */
+    mdns_build_request_domain(&dom, req, req->name[0]);
+    /* Add query question to output packet */
+    res = mdns_add_question(outpkt, &dom, req->qtype, DNS_RRCLASS_IN, 0);
+    if (res != ERR_OK) {
+      return res;
+    }
+    outpkt->questions++;
+  }
+  return ERR_OK;
+}
+#endif
+
 /**
  * Create packet with chosen answers as a reply
  *
@@ -565,6 +584,12 @@ mdns_create_outpacket(struct netif *netif, struct mdns_outmsg *msg,
   int i;
   u16_t answers = 0;
 
+#if LWIP_MDNS_SEARCH
+  res = mdns_add_query_question_to_outpacket(outpkt, msg);
+  if (res != ERR_OK) {
+    return res;
+  }
+#endif
 
   res = mdns_add_probe_questions_to_outpacket(outpkt, msg, netif);
   if (res != ERR_OK) {
@@ -1055,7 +1080,7 @@ mdns_start_multicast_timeouts_ipv6(struct netif *netif)
 /**
  *  This function clears the output message without changing the destination
  *  address or port. This is useful for clearing the delayed msg structs without
- *  loosing the set IP.
+ *  losing the set IP.
  *
  *  @param outmsg pointer to output message to clear.
  */
@@ -1106,5 +1131,33 @@ mdns_set_timeout(struct netif *netif, u32_t msecs, sys_timeout_handler handler,
   /* Now we have a timer running */
   *busy_flag = 1;
 }
+
+#ifdef LWIP_MDNS_SEARCH
+/**
+ * Send search request containing all our known data
+ * @param req The request to send
+ * @param netif The network interface to send on
+ * @param destination The target address to send to (usually multicast address)
+ */
+err_t
+mdns_send_request(struct mdns_request *req, struct netif *netif, const ip_addr_t *destination)
+{
+  struct mdns_outmsg outmsg;
+  err_t res;
+
+  memset(&outmsg, 0, sizeof(outmsg));
+  outmsg.query = req;
+  outmsg.dest_port = LWIP_IANA_PORT_MDNS;
+  SMEMCPY(&outmsg.dest_addr, destination, sizeof(outmsg.dest_addr));
+  res = mdns_send_outpacket(&outmsg, netif);
+  if(res != ERR_OK) {
+    LWIP_DEBUGF(MDNS_DEBUG, ("MDNS: Multicast query request send failed\n"));
+  }
+  else {
+    LWIP_DEBUGF(MDNS_DEBUG, ("MDNS: Multicast query request send successful\n"));
+  }
+  return res;
+}
+#endif
 
 #endif /* LWIP_MDNS_RESPONDER */

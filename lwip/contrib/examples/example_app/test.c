@@ -83,6 +83,7 @@
 
 #include "examples/httpd/cgi_example/cgi_example.h"
 #include "examples/httpd/fs_example/fs_example.h"
+#include "examples/httpd/https_example/https_example.h"
 #include "examples/httpd/ssi_example/ssi_example.h"
 
 #include "default_netif.h"
@@ -148,30 +149,30 @@
 #define USE_AUTOIP  LWIP_AUTOIP
 #endif
 
-/* globales variables for netifs */
+/* global variables for netifs */
 #if USE_ETHERNET
 #if LWIP_DHCP
 /* dhcp struct for the ethernet netif */
-struct dhcp netif_dhcp;
+static struct dhcp netif_dhcp;
 #endif /* LWIP_DHCP */
 #if LWIP_AUTOIP
 /* autoip struct for the ethernet netif */
-struct autoip netif_autoip;
+static struct autoip netif_autoip;
 #endif /* LWIP_AUTOIP */
 #endif /* USE_ETHERNET */
 #if USE_PPP
 /* THE PPP PCB */
-ppp_pcb *ppp;
+static ppp_pcb *ppp;
 /* THE PPP interface */
-struct netif ppp_netif;
+static struct netif ppp_netif;
 /* THE PPP descriptor */
-u8_t sio_idx = 0;
-sio_fd_t ppp_sio;
+static u8_t sio_idx = 0;
+static sio_fd_t ppp_sio;
 #endif /* USE_PPP */
 #if USE_SLIPIF
-struct netif slipif1;
+static struct netif slipif1;
 #if USE_SLIPIF > 1
-struct netif slipif2;
+static struct netif slipif2;
 #endif /* USE_SLIPIF > 1 */
 #endif /* USE_SLIPIF */
 
@@ -257,11 +258,11 @@ pppLinkStatusCallback(ppp_pcb *pcb, int errCode, void *ctx)
 
 #if PPPOS_SUPPORT
 static u32_t
-ppp_output_cb(ppp_pcb *pcb, u8_t *data, u32_t len, void *ctx)
+ppp_output_cb(ppp_pcb *pcb, const void *data, u32_t len, void *ctx)
 {
   LWIP_UNUSED_ARG(pcb);
   LWIP_UNUSED_ARG(ctx);
-  return sio_write(ppp_sio, data, len);
+  return sio_write(ppp_sio, (const u8_t*)data, len);
 }
 #endif /* PPPOS_SUPPORT */
 #endif /* USE_PPP */
@@ -370,9 +371,6 @@ test_netif_init(void)
 #endif
 #if LWIP_IPV6
   netif_create_ip6_linklocal_address(netif_default, 1);
-#if LWIP_IPV6_AUTOCONFIG
-  netif_default->ip6_autoconfig_enabled = 1;
-#endif
   printf("ip6 linklocal address: %s\n", ip6addr_ntoa(netif_ip6_addr(netif_default, 0)));
 #endif /* LWIP_IPV6 */
 #if LWIP_NETIF_STATUS_CALLBACK
@@ -492,8 +490,8 @@ dns_dorequest(void *arg)
   ip_addr_t dnsresp;
   LWIP_UNUSED_ARG(arg);
 
-  if (dns_gethostbyname(dnsname, &dnsresp, dns_found, 0) == ERR_OK) {
-    dns_found(dnsname, &dnsresp, 0);
+  if (dns_gethostbyname(dnsname, &dnsresp, dns_found, NULL) == ERR_OK) {
+    dns_found(dnsname, &dnsresp, NULL);
   }
 }
 #endif /* LWIP_DNS_APP && LWIP_DNS */
@@ -539,6 +537,9 @@ apps_init(void)
 #endif
 #if defined(LWIP_HTTPD_EXAMPLE_CGI_SIMPLE) && LWIP_HTTPD_EXAMPLE_CGI_SIMPLE
   cgi_ex_init();
+#endif
+#if defined(LWIP_HTTPD_EXAMPLE_HTTPS) && LWIP_HTTPD_EXAMPLE_HTTPS
+  https_ex_init();
 #endif
 #endif /* LWIP_HTTPD_APP_NETCONN */
 #endif /* LWIP_HTTPD_APP && LWIP_TCP */
@@ -609,7 +610,7 @@ test_init(void * arg)
 #endif /* NO_SYS */
 
   /* init randomizer again (seed per thread) */
-  srand((unsigned int)time(0));
+  srand((unsigned int)time(NULL));
 
   /* init network interfaces */
   test_netif_init();

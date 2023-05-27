@@ -303,7 +303,7 @@ a lot of data that needs to be copied, this should be set high. */
 #define MSCHAP_SUPPORT          0      /* Set > 0 for MSCHAP */
 #define CBCP_SUPPORT            0      /* Set > 0 for CBCP (NOT FUNCTIONAL!) */
 #define CCP_SUPPORT             0      /* Set > 0 for CCP */
-#define VJ_SUPPORT              1      /* Set > 0 for VJ header compression. */
+#define VJ_SUPPORT              0      /* Set > 0 for VJ header compression. */
 #define MD5_SUPPORT             1      /* Set > 0 for MD5 (see also CHAP) */
 
 #endif /* PPP_SUPPORT */
@@ -315,15 +315,6 @@ a lot of data that needs to be copied, this should be set high. */
 #if !defined(NO_SYS) || !NO_SYS /* default is 0 */
 void sys_check_core_locking(void);
 #define LWIP_ASSERT_CORE_LOCKED()  sys_check_core_locking()
-void sys_mark_tcpip_thread(void);
-#define LWIP_MARK_TCPIP_THREAD()   sys_mark_tcpip_thread()
-
-#if !defined(LWIP_TCPIP_CORE_LOCKING) || LWIP_TCPIP_CORE_LOCKING /* default is 1 */
-void sys_lock_tcpip_core(void);
-#define LOCK_TCPIP_CORE()          sys_lock_tcpip_core()
-void sys_unlock_tcpip_core(void);
-#define UNLOCK_TCPIP_CORE()        sys_unlock_tcpip_core()
-#endif
 #endif
 
 #ifndef LWIP_PLATFORM_ASSERT

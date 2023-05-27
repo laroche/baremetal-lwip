@@ -5,12 +5,12 @@
  *
  * @defgroup tcp_raw TCP
  * @ingroup callbackstyle_api
- * Transmission Control Protocol for IP\n
+ * Transmission Control Protocol for IP<br>
  * @see @ref api
  *
  * Common functions for the TCP implementation, such as functions
  * for manipulating the data structures and the TCP timer functions. TCP functions
- * related to input and output is found in tcp_in.c and tcp_out.c respectively.\n
+ * related to input and output is found in tcp_in.c and tcp_out.c respectively.<br>
  *
  * TCP connection setup
  * --------------------
@@ -502,7 +502,7 @@ tcp_close(struct tcp_pcb *pcb)
  * @ingroup tcp_raw
  * Causes all or part of a full-duplex connection of this PCB to be shut down.
  * This doesn't deallocate the PCB unless shutting down both sides!
- * Shutting down both sides is the same as calling tcp_close, so if it succeds
+ * Shutting down both sides is the same as calling tcp_close, so if it succeeds
  * (i.e. returns ER_OK), the PCB must not be referenced any more!
  *
  * @param pcb PCB to shutdown
@@ -647,6 +647,7 @@ tcp_abort(struct tcp_pcb *pcb)
  * bound to all local IP addresses.
  * If another connection is bound to the same port, the function will
  * return ERR_USE, otherwise ERR_OK is returned.
+ * @see MEMP_NUM_TCP_PCB_LISTEN and MEMP_NUM_TCP_PCB
  *
  * @param pcb the tcp_pcb to bind (no check is done whether this pcb is
  *        already bound!)
@@ -727,7 +728,7 @@ tcp_bind(struct tcp_pcb *pcb, const ip_addr_t *ipaddr, u16_t port)
             if ((IP_IS_V6(ipaddr) == IP_IS_V6_VAL(cpcb->local_ip)) &&
                 (ip_addr_isany(&cpcb->local_ip) ||
                  ip_addr_isany(ipaddr) ||
-                 ip_addr_cmp(&cpcb->local_ip, ipaddr))) {
+                 ip_addr_eq(&cpcb->local_ip, ipaddr))) {
               return ERR_USE;
             }
           }
@@ -870,7 +871,7 @@ tcp_listen_with_backlog_and_err(struct tcp_pcb *pcb, u8_t backlog, err_t *err)
        this port is only used once for every local IP. */
     for (lpcb = tcp_listen_pcbs.listen_pcbs; lpcb != NULL; lpcb = lpcb->next) {
       if ((lpcb->local_port == pcb->local_port) &&
-          ip_addr_cmp(&lpcb->local_ip, &pcb->local_ip)) {
+          ip_addr_eq(&lpcb->local_ip, &pcb->local_ip)) {
         /* this address/port is already used */
         lpcb = NULL;
         res = ERR_USE;
@@ -889,7 +890,7 @@ tcp_listen_with_backlog_and_err(struct tcp_pcb *pcb, u8_t backlog, err_t *err)
   lpcb->state = LISTEN;
   lpcb->prio = pcb->prio;
   lpcb->so_options = pcb->so_options;
-  lpcb->netif_idx = NETIF_NO_INDEX;
+  lpcb->netif_idx = pcb->netif_idx;
   lpcb->ttl = pcb->ttl;
   lpcb->tos = pcb->tos;
 #if LWIP_VLAN_PCP
@@ -1061,7 +1062,7 @@ again:
  * @param ipaddr the remote ip address to connect to
  * @param port the remote tcp port to connect to
  * @param connected callback function to call when connected (on error,
-                    the err calback will be called)
+                    the err callback will be called)
  * @return ERR_VAL if invalid arguments are given
  *         ERR_OK if connect request has been sent
  *         other err_t values if connect request couldn't be sent
@@ -1133,8 +1134,8 @@ tcp_connect(struct tcp_pcb *pcb, const ip_addr_t *ipaddr, u16_t port,
         for (cpcb = *tcp_pcb_lists[i]; cpcb != NULL; cpcb = cpcb->next) {
           if ((cpcb->local_port == pcb->local_port) &&
               (cpcb->remote_port == port) &&
-              ip_addr_cmp(&cpcb->local_ip, &pcb->local_ip) &&
-              ip_addr_cmp(&cpcb->remote_ip, ipaddr)) {
+              ip_addr_eq(&cpcb->local_ip, &pcb->local_ip) &&
+              ip_addr_eq(&cpcb->remote_ip, ipaddr)) {
             /* linux returns EISCONN here, but ERR_USE should be OK for us */
             return ERR_USE;
           }
@@ -1214,9 +1215,9 @@ tcp_slowtmr_start:
   }
   while (pcb != NULL) {
     LWIP_DEBUGF(TCP_DEBUG, ("tcp_slowtmr: processing active pcb\n"));
-    LWIP_ASSERT("tcp_slowtmr: active pcb->state != CLOSED\n", pcb->state != CLOSED);
-    LWIP_ASSERT("tcp_slowtmr: active pcb->state != LISTEN\n", pcb->state != LISTEN);
-    LWIP_ASSERT("tcp_slowtmr: active pcb->state != TIME-WAIT\n", pcb->state != TIME_WAIT);
+    LWIP_ASSERT("tcp_slowtmr: active pcb->state != CLOSED", pcb->state != CLOSED);
+    LWIP_ASSERT("tcp_slowtmr: active pcb->state != LISTEN", pcb->state != LISTEN);
+    LWIP_ASSERT("tcp_slowtmr: active pcb->state != TIME-WAIT", pcb->state != TIME_WAIT);
     if (pcb->last_timer == tcp_timer_ctr) {
       /* skip this pcb, we have already processed it */
       prev = pcb;
@@ -1900,14 +1901,16 @@ tcp_alloc(u8_t prio)
     /* As initial send MSS, we use TCP_MSS but limit it to 536.
        The send MSS is updated when an MSS option is received. */
     pcb->mss = INITIAL_MSS;
-    pcb->rto = 3000 / TCP_SLOW_INTERVAL;
-    pcb->sv = 3000 / TCP_SLOW_INTERVAL;
+    /* Set initial TCP's retransmission timeout to 3000 ms by default.
+       This value could be configured in lwipopts */
+    pcb->rto = LWIP_TCP_RTO_TIME / TCP_SLOW_INTERVAL;
+    pcb->sv = LWIP_TCP_RTO_TIME / TCP_SLOW_INTERVAL;
     pcb->rtime = -1;
     pcb->cwnd = 1;
     pcb->tmr = tcp_ticks;
     pcb->last_timer = tcp_timer_ctr;
 
-    /* RFC 5681 recommends setting ssthresh abritrarily high and gives an example
+    /* RFC 5681 recommends setting ssthresh arbitrarily high and gives an example
     of using the largest advertised receive window.  We've seen complications with
     receiving TCPs that use window scaling and/or window auto-tuning where the
     initial advertised window is very small and then grows rapidly once the
@@ -1936,6 +1939,7 @@ tcp_alloc(u8_t prio)
  * any of the TCP PCB lists.
  * The pcb is not put on any list until binding using tcp_bind().
  * If memory is not available for creating the new pcb, NULL is returned.
+ * @see MEMP_NUM_TCP_PCB_LISTEN and MEMP_NUM_TCP_PCB
  *
  * @internal: Maybe there should be a idle TCP PCB list where these
  * PCBs are put on. Port reservation using tcp_bind() is implemented but
@@ -1955,6 +1959,7 @@ tcp_new(void)
  * Creates a new TCP protocol control block but doesn't
  * place it on any of the TCP PCB lists.
  * The pcb is not put on any list until binding using tcp_bind().
+ * @see MEMP_NUM_TCP_PCB_LISTEN and MEMP_NUM_TCP_PCB
  *
  * @param type IP address type, see @ref lwip_ip_addr_type definitions.
  * If you want to listen to IPv4 and IPv6 (dual-stack) connections,
@@ -2070,6 +2075,7 @@ tcp_err(struct tcp_pcb *pcb, tcp_err_fn err)
  * @ingroup tcp_raw
  * Used for specifying the function that should be called when a
  * LISTENing connection has been connected to another host.
+ * @see MEMP_NUM_TCP_PCB_LISTEN and MEMP_NUM_TCP_PCB
  *
  * @param pcb tcp_pcb to set the accept callback
  * @param accept callback function to call for this pcb when LISTENing
@@ -2308,7 +2314,7 @@ tcp_netif_ip_addr_changed_pcblist(const ip_addr_t *old_addr, struct tcp_pcb *pcb
 
   while (pcb != NULL) {
     /* PCB bound to current local interface address? */
-    if (ip_addr_cmp(&pcb->local_ip, old_addr)
+    if (ip_addr_eq(&pcb->local_ip, old_addr)
 #if LWIP_AUTOIP
         /* connections to link-local addresses must persist (RFC3927 ch. 1.9) */
         && (!IP_IS_V4_VAL(pcb->local_ip) || !ip4_addr_islinklocal(ip_2_ip4(&pcb->local_ip)))
@@ -2343,7 +2349,7 @@ tcp_netif_ip_addr_changed(const ip_addr_t *old_addr, const ip_addr_t *new_addr)
       /* PCB bound to current local interface address? */
       for (lpcb = tcp_listen_pcbs.listen_pcbs; lpcb != NULL; lpcb = lpcb->next) {
         /* PCB bound to current local interface address? */
-        if (ip_addr_cmp(&lpcb->local_ip, old_addr)) {
+        if (ip_addr_eq(&lpcb->local_ip, old_addr)) {
           /* The PCB is listening to the old ipaddr and
             * is set to listen to the new one instead */
           ip_addr_copy(lpcb->local_ip, *new_addr);
@@ -2536,7 +2542,7 @@ tcp_pcbs_sane(void)
 /**
  * @defgroup tcp_raw_extargs ext arguments
  * @ingroup tcp_raw
- * Additional data storage per tcp pcb\n
+ * Additional data storage per tcp pcb<br>
  * @see @ref tcp_raw
  *
  * When LWIP_TCP_PCB_NUM_EXT_ARGS is > 0, every tcp pcb (including listen pcb)

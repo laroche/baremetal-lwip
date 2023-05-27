@@ -50,6 +50,11 @@
 #define LWIP_PROVIDE_ERRNO /* provide errno for non-MSVC */
 #endif /* _MSC_VER */
 
+#ifdef __GNUC__
+#define LWIP_TIMEVAL_PRIVATE 0
+#include <sys/time.h>
+#endif
+
 /* Define platform endianness (might already be defined) */
 #ifndef BYTE_ORDER
 #define BYTE_ORDER LITTLE_ENDIAN
@@ -102,10 +107,8 @@ void lwip_win32_platform_diag(const char *format, ...);
 #define LWIP_PLATFORM_DIAG(x) lwip_win32_platform_diag x
 #endif
 
-#ifndef LWIP_NORAND
-extern unsigned int sys_win_rand(void);
-#define LWIP_RAND() (sys_win_rand())
-#endif
+extern unsigned int lwip_port_rand(void);
+#define LWIP_RAND() ((uint32_t)lwip_port_rand())
 
 #define PPP_INCLUDE_SETTINGS_HEADER
 

@@ -45,6 +45,7 @@
  * @ingroup apps
  *
  * This is simple TFTP client/server for the lwIP raw API.
+ * You need to increase MEMP_NUM_SYS_TIMEOUT by one if you use TFTP!
  */
 
 #include "lwip/apps/tftp_client.h"
@@ -229,7 +230,7 @@ send_data(const ip_addr_t *addr, u16_t port)
 
   ret = tftp_state.ctx->read(tftp_state.handle, &payload[2], TFTP_MAX_PAYLOAD_SIZE);
   if (ret < 0) {
-    send_error(addr, port, TFTP_ERROR_ACCESS_VIOLATION, "Error occured while reading the file.");
+    send_error(addr, port, TFTP_ERROR_ACCESS_VIOLATION, "Error occurred while reading the file.");
     close_handle();
     return;
   }
@@ -239,7 +240,7 @@ send_data(const ip_addr_t *addr, u16_t port)
 }
 
 static void
-recv(void *arg, struct udp_pcb *upcb, struct pbuf *p, const ip_addr_t *addr, u16_t port)
+tftp_recv(void *arg, struct udp_pcb *upcb, struct pbuf *p, const ip_addr_t *addr, u16_t port)
 {
   u16_t *sbuf = (u16_t *) p->payload;
   int opcode;
@@ -248,7 +249,7 @@ recv(void *arg, struct udp_pcb *upcb, struct pbuf *p, const ip_addr_t *addr, u16
   LWIP_UNUSED_ARG(upcb);
 
   if (((tftp_state.port != 0) && (port != tftp_state.port)) ||
-      (!ip_addr_isany_val(tftp_state.addr) && !ip_addr_cmp(&tftp_state.addr, addr))) {
+      (!ip_addr_isany_val(tftp_state.addr) && !ip_addr_eq(&tftp_state.addr, addr))) {
     send_error(addr, port, TFTP_ERROR_ACCESS_VIOLATION, "Only one connection at a time is supported");
     pbuf_free(p);
     return;
@@ -467,7 +468,7 @@ tftp_init_common(u8_t mode, const struct tftp_context *ctx)
   tftp_state.upcb      = pcb;
   tftp_state.tftp_mode = mode;
 
-  udp_recv(pcb, recv, NULL);
+  udp_recv(pcb, tftp_recv, NULL);
 
   return ERR_OK;
 }
