@@ -9,6 +9,9 @@
 #include "lwip/timeouts.h"
 #include "eth_driver.h"
 
+/* XXX Setup full debugging. Also locking not used until now. */
+/* XXX Support re-initializing all network devices. */
+
 /* versatilepb maps LAN91C111 registers here */
 static void * const eth0_addr = (void * const) 0x10010000UL;
 
@@ -142,7 +145,7 @@ static const char zero_network_hwaddr[6];		/* Do not change, will be zero at run
 
 static err_t mynetif_init (struct netif *netif)
 {
-  netdev_config_t *dev = &e0;
+  netdev_config_t *dev = netif->state;
 
 #if LWIP_NETIF_HOSTNAME
   netif->hostname = "lwip";
@@ -182,12 +185,6 @@ static void netdev_config (netdev_config_t *dev, struct netif *netif)
 {
   unsigned int mode = get_mode(dev);
   if (mode == NET_STATIC) {
-#if 0
-    /* We force specific IPs here: */
-    IP4_ADDR(&dev->ipaddr, 10, 0, 2, 99);
-    IP4_ADDR(&dev->netmask, 255, 255, 0, 0);
-    IP4_ADDR(&dev->gw, 10, 0, 0, 1);
-#endif
   } else if (mode == NET_DHCP || mode == NET_DHCP_AUTOIP) {
     ip4_addr_set_zero(&dev->ipaddr);
     ip4_addr_set_zero(&dev->netmask);
@@ -196,7 +193,7 @@ static void netdev_config (netdev_config_t *dev, struct netif *netif)
     dhcp_set_struct(netif, &netif_dhcp);
   } else if (mode == NET_AUTOIP) {
 #if 0
-    autoip_set_struct(netif_default, &netif_autoip);
+    autoip_set_struct(netif, &netif_autoip);
 #endif
   } else {
     /* XXX error out, not a valid configuration */
@@ -204,13 +201,13 @@ static void netdev_config (netdev_config_t *dev, struct netif *netif)
   /* XXX memset netif to zero */
   netif->name[0] = 'e';			/* two chars within lwip */
   netif->name[1] = '0';
-  /* XXX state == NULL? */
-  (void) netif_add(netif, &dev->ipaddr, &dev->netmask, &dev->gw, NULL, mynetif_init, netif_input);
+  (void) netif_add(netif, &dev->ipaddr, &dev->netmask, &dev->gw,
+    dev /* state */, mynetif_init, netif_input);
 #if LWIP_NETIF_STATUS_CALLBACK
-  netif_set_status_callback(netif_default, netif_status_callback);
+  netif_set_status_callback(netif, netif_status_callback);
 #endif
 #if LWIP_NETIF_LINK_CALLBACK
-  netif_set_link_callback(netif_default, link_callback);
+  netif_set_link_callback(netif, link_callback);
 #endif
   /* Setting default route to this interface, this is "netif_default" as global var: */
   netif_set_default(netif);
@@ -222,7 +219,7 @@ static void netdev_config (netdev_config_t *dev, struct netif *netif)
   int err = dhcp_start(netif);
   LWIP_ASSERT("dhcp_start failed", err == ERR_OK);
 #elif 0
-  err = autoip_start(netif_default);
+  err = autoip_start(netif);
   LWIP_ASSERT("autoip_start failed", err == ERR_OK);
 #endif
 
