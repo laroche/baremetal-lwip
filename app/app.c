@@ -95,9 +95,18 @@ static err_t netif_output (struct netif *netif __unused, struct pbuf *p)
 
 /* What type of network setup? */
 #define NET_STATIC 1U
-#define NET_DHCP_AUTOIP 2U
+#if LWIP_DHCP
 #define NET_DHCP 3U
+#if LWIP_AUTOIP
+#define NET_DHCP_AUTOIP 2U
+#define MODE_DHCP(mode) ((mode) == NET_DHCP || (mode) == NET_DHCP_AUTOIP)
+#else
+#define MODE_DHCP(mode) ((mode) == NET_DHCP)
+#endif
+#endif
+#if LWIP_AUTOIP
 #define NET_AUTOIP 4U
+#endif
 
 /* Separate network type param or coded within ip address? */
 #define CONFIG_EXTRA_IP_TYPE 1
@@ -131,9 +140,15 @@ static __always_inline unsigned int get_mode (netdev_config_t *dev)
 #if CONFIG_EXTRA_IP_TYPE
   return dev->mode;
 #else
+#if LWIP_DHCP
+#if LWIP_AUTOIP
   if (dev->ipaddr == NET_DHCP_AUTOIP || dev->ipaddr == NET_DHCP) {
+#else
+  if (dev->ipaddr == NET_DHCP) {
+#endif
     return dev->ipaddr.addr;
   }
+#endif
   return NET_STATIC;
 #endif
 }
@@ -153,9 +168,12 @@ static err_t mynetif_init (struct netif *netif)
   if (0U != dev->mtu) {
     netif->mtu = dev->mtu;
   }
-  netif->flags = NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP | NETIF_FLAG_ETHERNET /* XXX | NETIF_FLAG_LINK_UP */
+  netif->flags = NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP | NETIF_FLAG_ETHERNET
 #if LWIP_IGMP
     | NETIF_FLAG_IGMP
+#endif
+#if 1							/* XXX This should not be neccessary with a good ethernet driver. */
+    | NETIF_FLAG_LINK_UP
 #endif
 	  ;
   LWIP_ASSERT("Ethernet hwaddr (MAC) strange size", sizeof(dev->hwaddr) == 6U);
@@ -172,7 +190,7 @@ static void netdev_config (netdev_config_t *dev, struct netif *netif)
   unsigned int mode = get_mode(dev);
   if (mode == NET_STATIC) {
 #if LWIP_DHCP
-  } else if (mode == NET_DHCP || mode == NET_DHCP_AUTOIP) {
+  } else if (MODE_DHCP(mode)) {
     ip4_addr_set_zero(&dev->ipaddr);
     ip4_addr_set_zero(&dev->netmask);
     ip4_addr_set_zero(&dev->gw);
@@ -187,7 +205,6 @@ static void netdev_config (netdev_config_t *dev, struct netif *netif)
   } else {
     /* XXX error out, not a valid configuration */
   }
-  /* XXX memset netif to zero */
   netif->name[0] = 'e';			/* two chars within lwip */
   netif->name[1] = '0';
   (void) netif_add(netif, &dev->ipaddr, &dev->netmask, &dev->gw,
@@ -204,7 +221,7 @@ static void netdev_config (netdev_config_t *dev, struct netif *netif)
   netif_set_up(netif);
 
 #if LWIP_DHCP
-  if (mode == NET_DHCP || mode == NET_DHCP_AUTOIP) {
+  if (MODE_DHCP(mode)) {
     int err = dhcp_start(netif);
     LWIP_ASSERT("dhcp_start failed", err == ERR_OK);
   }
@@ -236,14 +253,32 @@ static netdev_config_t e0 = {
   .netmask = { MY_IP4_ADDR(255, 255, 0, 0) },
   .gw = { MY_IP4_ADDR(10, 0, 0, 1) }
 };
-#else
+#elif 1
 /* This is default net config: DHCP with fallback to AutoIP: */
 static netdev_config_t e0 = {
   .hwaddr = { 0x00U, 0x23U, 0xC1U, 0xDEU, 0xD0U, 0x0DU },	/* XXX read actual hardware */
 #if CONFIG_EXTRA_IP_TYPE
+#if LWIP_AUTOIP
   .mode = NET_DHCP_AUTOIP,
 #else
+  .mode = NET_DHCP,
+#endif
+#else
+#if LWIP_AUTOIP
   .ipaddr = NET_DHCP_AUTOIP
+#else
+  .ipaddr = NET_DHCP
+#endif
+#endif
+};
+#else
+/* This is AutoIP config: */
+static netdev_config_t e0 = {
+  .hwaddr = { 0x00U, 0x23U, 0xC1U, 0xDEU, 0xD0U, 0x0DU },	/* XXX read actual hardware */
+#if CONFIG_EXTRA_IP_TYPE
+  .mode = NET_AUTOIP,
+#else
+  .ipaddr = NET_AUTOIP
 #endif
 };
 #endif
@@ -259,6 +294,15 @@ void start_lwip(void)
   nr_lan91c111_reset(eth0_addr, &sls, &sls);
   (void) nr_lan91c111_set_promiscuous(eth0_addr, &sls, 1);
 
+#if 0
+  (void) memset(&netif, '\0', sizeof(netif));
+#if LWIP_DHCP
+  (void) memset(&netif_dhcp, '\0', sizeof(netif_dhcp));
+#endif
+#if LWIP_AUTOIP
+  (void) memset(&netif_autoip, '\0', sizeof(netif_autoip));
+#endif
+#endif
   netdev_config(&e0, &netif);
 
   while (1) {
