@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include "lwip/netif.h"
 #include "lwip/dhcp.h"
+#include "lwip/autoip.h"
 #include "lwip/init.h"
 #include "lwip/etharp.h"
 #include "lwip/timeouts.h"
@@ -24,7 +25,12 @@ static s_lan91c111_state sls = {
 
 /* XXX check LWIP_SINGLE_NETIF: */
 static struct netif netif;
+#if LWIP_DHCP
 static struct dhcp netif_dhcp;
+#endif
+#if LWIP_AUTOIP
+static struct autoip netif_autoip;
+#endif
 
 #if LWIP_NETIF_STATUS_CALLBACK
 static void netif_status_callback (struct netif *netif)
@@ -165,14 +171,17 @@ static void netdev_config (netdev_config_t *dev, struct netif *netif)
 {
   unsigned int mode = get_mode(dev);
   if (mode == NET_STATIC) {
+#if LWIP_DHCP
   } else if (mode == NET_DHCP || mode == NET_DHCP_AUTOIP) {
     ip4_addr_set_zero(&dev->ipaddr);
     ip4_addr_set_zero(&dev->netmask);
     ip4_addr_set_zero(&dev->gw);
     /* If not done, dhcp_start() will allocate it dynamically: */
     dhcp_set_struct(netif, &netif_dhcp);
+#endif
+#if LWIP_AUTOIP
   } else if (mode == NET_AUTOIP) {
-#if 0
+    /* If not done, autoip_start() will allocate it dynamically: */
     autoip_set_struct(netif, &netif_autoip);
 #endif
   } else {
@@ -194,14 +203,18 @@ static void netdev_config (netdev_config_t *dev, struct netif *netif)
   /* Set interface up, so that actual packets can be received: */
   netif_set_up(netif);
 
-#if 0
 #if LWIP_DHCP
-  int err = dhcp_start(netif);
-  LWIP_ASSERT("dhcp_start failed", err == ERR_OK);
-#elif 0
-  err = autoip_start(netif);
-  LWIP_ASSERT("autoip_start failed", err == ERR_OK);
+  if (mode == NET_DHCP || mode == NET_DHCP_AUTOIP) {
+    int err = dhcp_start(netif);
+    LWIP_ASSERT("dhcp_start failed", err == ERR_OK);
+  }
 #endif
+
+#if LWIP_AUTOIP
+  if (mode == NET_AUTOIP) {
+    int err = autoip_start(netif);
+    LWIP_ASSERT("autoip_start failed", err == ERR_OK);
+  }
 #endif
 }
 
@@ -226,7 +239,7 @@ static netdev_config_t e0 = {
 #else
 /* This is default net config: DHCP with fallback to AutoIP: */
 static netdev_config_t e0 = {
-  .hwaddr = [ 0x00U, 0x23U, 0xC1U, 0xDEU, 0xD0U, 0x0DU ],	/* XXX read actual hardware */
+  .hwaddr = { 0x00U, 0x23U, 0xC1U, 0xDEU, 0xD0U, 0x0DU },	/* XXX read actual hardware */
 #if CONFIG_EXTRA_IP_TYPE
   .mode = NET_DHCP_AUTOIP,
 #else
