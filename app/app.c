@@ -98,7 +98,7 @@ static err_t netif_output (struct netif *netif __unused, struct pbuf *p)
 
 /* Configuration params that should also go into a config key/value store
  * for one network device: */
-typedef struct netdev_config_t {
+typedef struct {
   /* phys layer */
 #if 0
   unsigned int link_speed;		/* 100MB, 1000MB, auto hardware config */
@@ -132,30 +132,6 @@ static __always_inline unsigned int get_mode (netdev_config_t *dev)
 #endif
 }
 
-/* Define ethernet device default config: */
-#if 1					/* XXX For now test with static IPs: */
-static netdev_config_t e0 = {
-  .hwaddr = { 0x00U, 0x23U, 0xC1U, 0xDEU, 0xD0U, 0x0DU },
-#if CONFIG_EXTRA_IP_TYPE
-  .mode = NET_STATIC,
-#endif
-#define MY_IP4_ADDR(a, b, c, d) PP_HTONL(LWIP_MAKEU32((a), (b), (c), (d)))
-  .ipaddr = { MY_IP4_ADDR(10, 0, 2, 99) },
-  .netmask = { MY_IP4_ADDR(255, 255, 0, 0) },
-  .gw = { MY_IP4_ADDR(10, 0, 0, 1) }
-};
-#else
-/* This is default net config: DHCP with fallback to AutoIP: */
-static netdev_config_t e0 = {
-  .hwaddr = [ 0x00U, 0x23U, 0xC1U, 0xDEU, 0xD0U, 0x0DU ],	/* XXX read actual hardware */
-#if CONFIG_EXTRA_IP_TYPE
-  .mode = NET_DHCP_AUTOIP,
-#else
-  .ipaddr = NET_DHCP_AUTOIP
-#endif
-};
-#endif
-
 static const char zero_network_hwaddr[6];		/* Do not change, will be zero at runtime. */
 
 static err_t mynetif_init (struct netif *netif)
@@ -173,14 +149,9 @@ static err_t mynetif_init (struct netif *netif)
   }
   netif->flags = NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP | NETIF_FLAG_ETHERNET /* XXX | NETIF_FLAG_LINK_UP */
 #if LWIP_IGMP
-  | NETIF_FLAG_IGMP
+    | NETIF_FLAG_IGMP
 #endif
 	  ;
-#if 0
-#if LWIP_IPV6_MLD
-  | NETIF_FLAG_MLD6
-#endif
-#endif
   LWIP_ASSERT("Ethernet hwaddr (MAC) strange size", sizeof(dev->hwaddr) == 6U);
   LWIP_ASSERT("Ethernet hwaddr (MAC) from zero device strange size", sizeof(dev->hwaddr) == sizeof(zero_network_hwaddr));
   if (0 != memcmp(dev->hwaddr, zero_network_hwaddr, sizeof(dev->hwaddr))) {
@@ -188,12 +159,6 @@ static err_t mynetif_init (struct netif *netif)
     netif->hwaddr_len = 6U;
   }
   return ERR_OK;
-}
-
-static void net_config_read (void)
-{
-  /* Read in the network configuration for a specific network device. */
-  /* Change e0 with new values. */
 }
 
 static void netdev_config (netdev_config_t *dev, struct netif *netif)
@@ -237,20 +202,38 @@ static void netdev_config (netdev_config_t *dev, struct netif *netif)
   err = autoip_start(netif);
   LWIP_ASSERT("autoip_start failed", err == ERR_OK);
 #endif
-
-#if LWIP_DNS_APP && LWIP_DNS
-  /* wait until the netif is up (for dhcp, autoip or ppp) */
-  sys_timeout(5000, dns_dorequest, NULL);
-#endif
-
-  ping_pcb = raw_new(IP_PROTO_ICMP);
-  LWIP_ASSERT("ping_pcb != NULL", ping_pcb != NULL);
-
-  raw_recv(ping_pcb, ping_recv, NULL);
-  raw_bind(ping_pcb, IP_ADDR_ANY);
-  sys_timeout(PING_DELAY, ping_timeout, ping_pcb);
 #endif
 }
+
+static void net_config_read (void)
+{
+  /* Read in the network configuration for a specific network device. */
+  /* Change e0 with new values. */
+}
+
+/* Define ethernet device default config: */
+#if 1					/* XXX For now test with static IPs: */
+static netdev_config_t e0 = {
+  .hwaddr = { 0x00U, 0x23U, 0xC1U, 0xDEU, 0xD0U, 0x0DU },
+#if CONFIG_EXTRA_IP_TYPE
+  .mode = NET_STATIC,
+#endif
+#define MY_IP4_ADDR(a, b, c, d) PP_HTONL(LWIP_MAKEU32((a), (b), (c), (d)))
+  .ipaddr = { MY_IP4_ADDR(10, 0, 2, 99) },
+  .netmask = { MY_IP4_ADDR(255, 255, 0, 0) },
+  .gw = { MY_IP4_ADDR(10, 0, 0, 1) }
+};
+#else
+/* This is default net config: DHCP with fallback to AutoIP: */
+static netdev_config_t e0 = {
+  .hwaddr = [ 0x00U, 0x23U, 0xC1U, 0xDEU, 0xD0U, 0x0DU ],	/* XXX read actual hardware */
+#if CONFIG_EXTRA_IP_TYPE
+  .mode = NET_DHCP_AUTOIP,
+#else
+  .ipaddr = NET_DHCP_AUTOIP
+#endif
+};
+#endif
 
 void start_lwip(void)
 {
