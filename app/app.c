@@ -12,6 +12,7 @@
 
 /* XXX Setup full debugging. Also locking not used until now. */
 /* XXX Support re-initializing all network devices. */
+/* XXX Support several network interfaces. */
 
 /* versatilepb maps LAN91C111 registers here */
 static void * const eth0_addr = (void * const) 0x10010000UL;
@@ -235,14 +236,8 @@ static void netdev_config (netdev_config_t *dev, struct netif *netif)
 #endif
 }
 
-static void net_config_read (void)
-{
-  /* Read in the network configuration for a specific network device. */
-  /* Change e0 with new values. */
-}
-
 /* Define ethernet device default config: */
-#if 1					/* XXX For now test with static IPs: */
+#if 0					/* XXX For now test with static IPs: */
 static netdev_config_t e0 = {
   .hwaddr = { 0x00U, 0x23U, 0xC1U, 0xDEU, 0xD0U, 0x0DU },
 #if CONFIG_EXTRA_IP_TYPE
@@ -282,6 +277,12 @@ static netdev_config_t e0 = {
 #endif
 };
 #endif
+
+static void net_config_read (void)
+{
+  /* Read in the network configuration for a specific network device. */
+  /* Change e0 with new values. */
+}
 
 void start_lwip(void)
 {
