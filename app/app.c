@@ -13,6 +13,7 @@
 /* XXX Setup full debugging. Also locking not used until now. */
 /* XXX Support re-initializing all network devices. */
 /* XXX Support several network interfaces. */
+/* XXX netif is shadowed. */
 
 /* versatilepb maps LAN91C111 registers here */
 static void * const eth0_addr = (void * const) 0x10010000UL;
@@ -174,6 +175,7 @@ static err_t mynetif_init (struct netif *netif)
     | NETIF_FLAG_IGMP
 #endif
 #if 1							/* XXX This should not be neccessary with a good ethernet driver. */
+    /* network driver would call netif_set_link_up() */
     | NETIF_FLAG_LINK_UP
 #endif
 	  ;
