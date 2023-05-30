@@ -147,7 +147,7 @@ typedef uintptr_t mem_ptr_t;
 #if !LWIP_NO_INTTYPES_H
 #include <inttypes.h>
 #ifndef X8_F
-#define X8_F  "02" PRIx8
+#define X8_F  "02x"
 #endif
 #ifndef U16_F
 #define U16_F PRIu16
@@ -156,7 +156,7 @@ typedef uintptr_t mem_ptr_t;
 #define S16_F PRId16
 #endif
 #ifndef X16_F
-#define X16_F PRIx16
+#define X16_F "04x"
 #endif
 #ifndef U32_F
 #define U32_F PRIu32
