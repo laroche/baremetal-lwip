@@ -48,14 +48,28 @@ LWIP_INCS = -I lwip/src -I lwip/src/include/ -I lwip/src/api/\
 vpath %.c lwip/src/api/ lwip/src/core/ lwip/src/netif/ lwip/src/core/ipv4/\
           $(PLATFORM_DIR) $(APP_DIR)
 
+# Detect Windows with two possible ways. On Linux start parallel builds:
+ifeq ($(OS),Windows_NT)
+else
+ifeq '$(findstring ;,$(PATH))' ';'
+else
+CORES?=$(shell (nproc --all || sysctl -n hw.ncpu) 2>/dev/null || echo 1)
+ifneq ($(CORES),1)
+.PHONY: _all
+_all:
+	$(MAKE) all -j$(CORES)
+endif
+endif
+endif
+
 .PHONY: all clean run lwip
 
-all : | $(LWIP_LIB) $(BIN_TARGET)
+all : $(BIN_TARGET) # $(LWIP_LIB)
 
 lwip : $(LWIP_LIB)
 
 $(LWIP_LIB) : $(LWIP_OBJS)
-	$(ARCHIVE) crv $@ $(LWIP_OBJS)
+	$(ARCHIVE) cr $@ $(LWIP_OBJS)
 
 $(BIN_DIR)/%.o : %.c
 	$(COMPILE) -g -o $@ -c $(CFLAGS) $(LWIP_INCS) $<
@@ -64,7 +78,7 @@ $(BIN_DIR)/%.o : $(PLATFORM_DIR)/%.s
 	$(ASSEMBLE) -g -o $@ -c $(ASFLAGS) $<
 
 # -Wl,--no-warn-rwx-segments
-$(LINK_TARGET) : $(APP_OBJS)
+$(LINK_TARGET) : $(LWIP_OBJS) $(APP_OBJS) $(LDSCRIPT)
 	$(LINKER) --specs=nano.specs --specs=nosys.specs -nostartfiles -T $(LDSCRIPT) -g \
     $(LWIP_OBJS) $(APP_OBJS) -o $(LINK_TARGET) -Wl,-Map=$(MAPFILE)
 
