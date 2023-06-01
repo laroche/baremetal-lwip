@@ -4,6 +4,8 @@ ASSEMBLE  = $(TOOLCHAIN)-as
 ARCHIVE   = $(TOOLCHAIN)-ar
 LINKER    = $(TOOLCHAIN)-gcc
 OBJCOPY   = $(TOOLCHAIN)-objcopy
+OBJDUMP   = $(TOOLCHAIN)-objdump
+SIZE      = $(TOOLCHAIN)-size
 
 CFLAGS  = -mcpu=arm926ej-s --specs=nano.specs --specs=nosys.specs -O2 -Wall -Wextra -pedantic -Wno-format -I $(PLATFORM_DIR)
 #CFLAGS += -Wundef -Wwrite-strings -Wold-style-definition -Wunreachable-code -Waggregate-return -Wlogical-op -Wtrampolines
@@ -23,6 +25,7 @@ PLATFORM_DIR = ./platform
 LDSCRIPT     = $(PLATFORM_DIR)/layout.ld
 LINK_TARGET  = $(BIN_DIR)/app.elf
 MAPFILE      = $(BIN_DIR)/app.map
+LISTFILE     = $(BIN_DIR)/app.lst
 BIN_TARGET   = $(BIN_DIR)/app.bin
 
 # names of .c and .s source files in app and platform source directories
@@ -81,6 +84,8 @@ $(BIN_DIR)/%.o : $(PLATFORM_DIR)/%.s
 $(LINK_TARGET) : $(LWIP_OBJS) $(APP_OBJS) $(LDSCRIPT)
 	$(LINKER) --specs=nano.specs --specs=nosys.specs -nostartfiles -T $(LDSCRIPT) -g \
     $(LWIP_OBJS) $(APP_OBJS) -o $(LINK_TARGET) -Wl,-Map=$(MAPFILE)
+	$(OBJDUMP) -d $@ > $(LISTFILE)
+	$(SIZE) $@
 
 $(BIN_TARGET) : $(LINK_TARGET)
 	$(OBJCOPY) -O binary $(LINK_TARGET) $(BIN_TARGET)
