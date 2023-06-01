@@ -11,7 +11,7 @@
 #include "eth_driver.h"
 
 /* XXX Setup full debugging. Also locking not used until now. */
-/* XXX Support re-initializing all network devices. */
+/* XXX Support re-initializing all network devices. Shutting down if. */
 /* XXX Support several network interfaces. */
 /* XXX netif is shadowed. */
 
@@ -174,11 +174,7 @@ static err_t mynetif_init (struct netif *netif)
 #if LWIP_IGMP
     | NETIF_FLAG_IGMP
 #endif
-#if 1							/* XXX This should not be neccessary with a good ethernet driver. */
-    /* network driver would call netif_set_link_up() */
-    | NETIF_FLAG_LINK_UP
-#endif
-	  ;
+    ;
   LWIP_ASSERT("Ethernet hwaddr (MAC) strange size", sizeof(dev->hwaddr) == 6U);
   LWIP_ASSERT("Ethernet hwaddr (MAC) from zero device strange size", sizeof(dev->hwaddr) == sizeof(zero_network_hwaddr));
   if (0 != memcmp(dev->hwaddr, zero_network_hwaddr, sizeof(dev->hwaddr))) {
@@ -220,6 +216,9 @@ static void netdev_config (netdev_config_t *dev, struct netif *netif)
 #endif
   /* Setting default route to this interface, this is "netif_default" as global var: */
   netif_set_default(netif);
+  /* Check if link up for the ethernet device can be set:
+   * XXX This should be confirmed by the hardware ethernet driver: */
+  netif_set_link_up(netif);
   /* Set interface up, so that actual packets can be received: */
   netif_set_up(netif);
 
