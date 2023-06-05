@@ -3,6 +3,7 @@
 #include <sys/cdefs.h>
 #include <stdio.h>
 #include "lwip/netif.h"
+#include "netif/ethernet.h"
 #include "lwip/dhcp.h"
 #include "lwip/autoip.h"
 #include "lwip/init.h"
@@ -38,9 +39,13 @@ static struct autoip netif_autoip;
 static void netif_status_callback (struct netif *netif)
 {
   if (netif_is_up(netif)) {
-    printf("status_callback==UP, local interface IP is %s\n", ip4addr_ntoa(netif_ip4_addr(netif)));
+    LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE,
+      ("netif_status_callback: %c%c UP, local interface IP is %s\n",
+      netif->name[0], netif->name[1], ip4addr_ntoa(netif_ip4_addr(netif))));
   } else {
-    printf("status_callback==DOWN\n");
+    LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE,
+      ("netif_status_callback: %c%c DOWN\n",
+      netif->name[0], netif->name[1]));
   }
 }
 #endif
@@ -48,25 +53,33 @@ static void netif_status_callback (struct netif *netif)
 #if LWIP_NETIF_LINK_CALLBACK
 static void link_callback (struct netif *netif)
 {
-  if (netif_is_link_up(netif)) {
-    printf("link_callback==UP\n");
-  } else {
-    printf("link_callback==DOWN\n");
-  }
+  const char *updown = netif_is_link_up(netif)? "UP" : "DOWN";
+
+  LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE,
+    ("link_callback: %c%c %s\n", netif->name[0], netif->name[1], updown));
 }
 #endif
 
 /* feed frames from driver to LwIP */
 static int process_frames (r16 *frame, int frame_len)
 {
-  struct pbuf *p = pbuf_alloc(PBUF_RAW, frame_len, PBUF_POOL);
+  struct pbuf *p = pbuf_alloc(PBUF_RAW, frame_len + ETH_PAD_SIZE, PBUF_POOL);
   if (NULL != p) {
+#if ETH_PAD_SIZE
+    pbuf_remove_header(p, ETH_PAD_SIZE);
+#endif
+    LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE, ("process_frames: ethernet frame size: %u\n", frame_len));
     if (ERR_OK != pbuf_take(p, frame, frame_len)) {
       (void) pbuf_free(p);
       LINK_STATS_INC(link.drop);
-    } else if (ERR_OK != netif.input(p, &netif)) {
-      (void) pbuf_free(p);
-      LINK_STATS_INC(link.drop);
+    } else {
+#if ETH_PAD_SIZE
+      pbuf_add_header(p, ETH_PAD_SIZE);
+#endif
+      if (ERR_OK != netif.input(p, &netif)) {
+        (void) pbuf_free(p);
+        LINK_STATS_INC(link.drop);
+      }
     }
   } else {
     LINK_STATS_INC(link.memerr);
@@ -78,12 +91,15 @@ static int process_frames (r16 *frame, int frame_len)
 /* transmit frames from LwIP using driver */
 static err_t netif_output (struct netif *netif __unused, struct pbuf *p)
 {
-  unsigned char mac_send_buffer[p->tot_len];
+  unsigned int length = p->tot_len - ETH_PAD_SIZE;
+  unsigned char mac_send_buffer[length];
 
   (void) netif;
   LINK_STATS_INC(link.xmit);
-  (void) pbuf_copy_partial(p, mac_send_buffer, p->tot_len, 0);
-  nr_lan91c111_tx_frame(eth0_addr, &sls, mac_send_buffer, p->tot_len);
+  if (length != pbuf_copy_partial(p, mac_send_buffer, length, ETH_PAD_SIZE)) {
+    LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE, ("netif_output: not copying whole packet: %u\n", length));
+  }
+  nr_lan91c111_tx_frame(eth0_addr, &sls, mac_send_buffer, length);
 #if 0
   for (q = p; q != NULL; q = q->next) {
     /* Send the data from the pbuf to the interface, one pbuf at a
@@ -92,6 +108,7 @@ static err_t netif_output (struct netif *netif __unused, struct pbuf *p)
     send data from(q->payload, q->len);
   }
 #endif
+  LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE, ("netif_output: sending ethernet frame with size: %u\n", length));
   return ERR_OK;
 }
 
@@ -207,7 +224,7 @@ static void netdev_config (netdev_config_t *dev, struct netif *netif)
   netif->name[0] = 'e';			/* two chars within lwip */
   netif->name[1] = '0';
   (void) netif_add(netif, &dev->ipaddr, &dev->netmask, &dev->gw,
-    dev /* state */, mynetif_init, netif_input);
+    dev /* state */, mynetif_init, ethernet_input /* netif_input */);
 #if LWIP_NETIF_STATUS_CALLBACK
   netif_set_status_callback(netif, netif_status_callback);
 #endif

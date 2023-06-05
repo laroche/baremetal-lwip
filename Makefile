@@ -43,7 +43,8 @@ LWIP_OBJS = $(addprefix $(BIN_DIR)/,\
               init.o def.o dns.o inet_chksum.o ip.o mem.o memp.o netif.o \
               pbuf.o raw.o stats.o sys.o altcp.o altcp_alloc.o altcp_tcp.o \
               tcp.o tcp_in.o tcp_out.o timeouts.o udp.o icmp.o ip4.o \
-              ip4_addr.o ip4_frag.o ethernet.o etharp.o acd.o dhcp.o)
+              ip4_addr.o ip4_frag.o ethernet.o etharp.o acd.o dhcp.o \
+              autoip.o)
 
 LWIP_INCS = -I lwip/src -I lwip/src/include/ -I lwip/src/api/\
             -I lwip/src/core -I lwip/src/netif -I lwip/src/core/ipv4\

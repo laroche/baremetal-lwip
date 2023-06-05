@@ -99,12 +99,12 @@ ethernet_input(struct pbuf *p, struct netif *netif)
   /* points to packet payload, which starts with an Ethernet header */
   ethhdr = (struct eth_hdr *)p->payload;
   LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE,
-              ("ethernet_input: dest:%"X8_F":%"X8_F":%"X8_F":%"X8_F":%"X8_F":%"X8_F", src:%"X8_F":%"X8_F":%"X8_F":%"X8_F":%"X8_F":%"X8_F", type:%"X16_F"\n",
+              ("ethernet_input: dest:%"X8_F":%"X8_F":%"X8_F":%"X8_F":%"X8_F":%"X8_F", src:%"X8_F":%"X8_F":%"X8_F":%"X8_F":%"X8_F":%"X8_F", type:%"X16_F", size:%u\n",
                (unsigned char)ethhdr->dest.addr[0], (unsigned char)ethhdr->dest.addr[1], (unsigned char)ethhdr->dest.addr[2],
                (unsigned char)ethhdr->dest.addr[3], (unsigned char)ethhdr->dest.addr[4], (unsigned char)ethhdr->dest.addr[5],
                (unsigned char)ethhdr->src.addr[0],  (unsigned char)ethhdr->src.addr[1],  (unsigned char)ethhdr->src.addr[2],
                (unsigned char)ethhdr->src.addr[3],  (unsigned char)ethhdr->src.addr[4],  (unsigned char)ethhdr->src.addr[5],
-               lwip_htons(ethhdr->type)));
+               lwip_htons(ethhdr->type), p->tot_len));
 
   type = ethhdr->type;
 #if ETHARP_SUPPORT_VLAN
@@ -314,7 +314,7 @@ ethernet_output(struct netif * netif, struct pbuf * p,
   LWIP_ASSERT("netif->hwaddr_len must be 6 for ethernet_output!",
               (netif->hwaddr_len == ETH_HWADDR_LEN));
   LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE,
-              ("ethernet_output: sending packet %p\n", (void *)p));
+              ("ethernet_output: sending packet %p size %u\n", (void *)p, p->tot_len - ETH_PAD_SIZE));
 
   /* send the packet */
   return netif->linkoutput(netif, p);

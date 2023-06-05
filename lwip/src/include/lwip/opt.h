@@ -694,6 +694,7 @@
  * on a 32-bit boundary, so setting this to 2 can speed up 32-bit-platforms.
  */
 #if !defined ETH_PAD_SIZE || defined __DOXYGEN__
+//#define ETH_PAD_SIZE                    2
 #define ETH_PAD_SIZE                    0
 #endif
 
@@ -1654,7 +1655,7 @@
  * changes its up/down status (i.e., due to DHCP IP acquisition)
  */
 #if !defined LWIP_NETIF_STATUS_CALLBACK || defined __DOXYGEN__
-#define LWIP_NETIF_STATUS_CALLBACK      0
+#define LWIP_NETIF_STATUS_CALLBACK      1
 #endif
 
 /**
@@ -1671,7 +1672,7 @@
  * whenever the link changes (i.e., link down)
  */
 #if !defined LWIP_NETIF_LINK_CALLBACK || defined __DOXYGEN__
-#define LWIP_NETIF_LINK_CALLBACK        0
+#define LWIP_NETIF_LINK_CALLBACK        1
 #endif
 
 /**
@@ -3338,7 +3339,7 @@
  * PBUF_DEBUG: Enable debugging in pbuf.c.
  */
 #if !defined PBUF_DEBUG || defined __DOXYGEN__
-#define PBUF_DEBUG                      LWIP_DBG_OFF
+#define PBUF_DEBUG                      LWIP_DBG_ON
 #endif
 
 /**
@@ -3387,7 +3388,7 @@
  * IP_DEBUG: Enable debugging for IP.
  */
 #if !defined IP_DEBUG || defined __DOXYGEN__
-#define IP_DEBUG                        LWIP_DBG_OFF
+#define IP_DEBUG                        LWIP_DBG_ON
 #endif
 
 /**
@@ -3521,28 +3522,28 @@
  * DHCP_DEBUG: Enable debugging in dhcp.c.
  */
 #if !defined DHCP_DEBUG || defined __DOXYGEN__
-#define DHCP_DEBUG                      LWIP_DBG_OFF
+#define DHCP_DEBUG                      LWIP_DBG_ON
 #endif
 
 /**
  * AUTOIP_DEBUG: Enable debugging in autoip.c.
  */
 #if !defined AUTOIP_DEBUG || defined __DOXYGEN__
-#define AUTOIP_DEBUG                    LWIP_DBG_OFF
+#define AUTOIP_DEBUG                    LWIP_DBG_ON
 #endif
 
 /**
  * ACD_DEBUG: Enable debugging in acd.c.
  */
 #if !defined ACD_DEBUG || defined __DOXYGEN__
-#define ACD_DEBUG                       LWIP_DBG_OFF
+#define ACD_DEBUG                       LWIP_DBG_ON
 #endif
 
 /**
  * DNS_DEBUG: Enable debugging for DNS.
  */
 #if !defined DNS_DEBUG || defined __DOXYGEN__
-#define DNS_DEBUG                       LWIP_DBG_OFF
+#define DNS_DEBUG                       LWIP_DBG_ON
 #endif
 
 /**

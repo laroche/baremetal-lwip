@@ -81,7 +81,7 @@
  * MEM_SIZE: the size of the heap memory. If the application will send
  * a lot of data that needs to be copied, this should be set high.
  */
-#define MEM_SIZE                        1600
+#define MEM_SIZE                        16000
 
 /*
    ------------------------------------------------
@@ -287,7 +287,7 @@
 /**
  * LWIP_AUTOIP==1: Enable AUTOIP module.
  */
-#define LWIP_AUTOIP                     0
+#define LWIP_AUTOIP                     1
 
 /*
    ----------------------------------
@@ -407,7 +407,7 @@
 /**
  * LWIP_STATS==1: Enable statistics collection in lwip_stats.
  */
-#define LWIP_STATS                      0
+#define LWIP_STATS                      1
 /*
    ---------------------------------
    ---------- PPP options ----------

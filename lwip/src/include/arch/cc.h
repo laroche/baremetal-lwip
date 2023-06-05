@@ -7,10 +7,10 @@
 #include <string.h>
 #include <sys/time.h>
 
-// Includes definition of mch_printf macro to do printf
+/* Includes definition of mch_printf macro to do printf */
 #include "mch.h"
 
-//#define BYTE_ORDER  BIG_ENDIAN
+/* #define BYTE_ORDER  BIG_ENDIAN */
 
 typedef uint8_t     u8_t;
 typedef int8_t      s8_t;
@@ -48,7 +48,6 @@ typedef uintptr_t   mem_ptr_t;
         mch_abort();                        \
     } while (0)
 
-static inline u32_t sys_now(void) {return 0;}
+static inline u32_t sys_now(void) { return 0; }
 
 #endif /* __ARCH_CC_H__ */
-
