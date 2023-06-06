@@ -63,10 +63,11 @@ static void link_callback (struct netif *netif)
 /* feed frames from driver to LwIP */
 static int process_frames (r16 *frame, int frame_len)
 {
+  /* XXX seems adding ETH_PAD_SIZE is not required here: */
   struct pbuf *p = pbuf_alloc(PBUF_RAW, frame_len + ETH_PAD_SIZE, PBUF_POOL);
   if (NULL != p) {
 #if ETH_PAD_SIZE
-    pbuf_remove_header(p, ETH_PAD_SIZE);
+    (void) pbuf_remove_header(p, ETH_PAD_SIZE);
 #endif
     LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE, ("process_frames: ethernet frame size: %u\n", frame_len));
     if (ERR_OK != pbuf_take(p, frame, frame_len)) {
@@ -74,7 +75,7 @@ static int process_frames (r16 *frame, int frame_len)
       LINK_STATS_INC(link.drop);
     } else {
 #if ETH_PAD_SIZE
-      pbuf_add_header(p, ETH_PAD_SIZE);
+      (void) pbuf_add_header(p, ETH_PAD_SIZE);
 #endif
       if (ERR_OK != netif.input(p, &netif)) {
         (void) pbuf_free(p);
@@ -92,7 +93,7 @@ static int process_frames (r16 *frame, int frame_len)
 static err_t netif_output (struct netif *netif __unused, struct pbuf *p)
 {
   unsigned int length = p->tot_len - ETH_PAD_SIZE;
-  unsigned char mac_send_buffer[length];
+  unsigned char mac_send_buffer[length];		/* XXX stack needs to be big enough */
 
   (void) netif;
   LINK_STATS_INC(link.xmit);
@@ -100,14 +101,6 @@ static err_t netif_output (struct netif *netif __unused, struct pbuf *p)
     LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE, ("netif_output: not copying whole packet: %u\n", length));
   }
   nr_lan91c111_tx_frame(eth0_addr, &sls, mac_send_buffer, length);
-#if 0
-  for (q = p; q != NULL; q = q->next) {
-    /* Send the data from the pbuf to the interface, one pbuf at a
-       time. The size of the data in each pbuf is kept in the ->len
-       variable. */
-    send data from(q->payload, q->len);
-  }
-#endif
   LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE, ("netif_output: sending ethernet frame with size: %u\n", length));
   return ERR_OK;
 }
@@ -219,7 +212,9 @@ static void netdev_config (netdev_config_t *dev, struct netif *netif)
     autoip_set_struct(netif, &netif_autoip);
 #endif
   } else {
-    /* XXX error out, not a valid configuration */
+    /* not a valid configuration */
+    LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE,
+      ("netdev_config: %c%c has no valid config\n", netif->name[0], netif->name[1]));
   }
   netif->name[0] = 'e';			/* two chars within lwip */
   netif->name[1] = '0';
@@ -305,6 +300,7 @@ static void net_config_read (void)
 void start_lwip(void)
 {
   srand((unsigned int)time(0));
+  /* srand(read_rtc()); */
 
   lwip_init();
 
