@@ -39,11 +39,11 @@ static struct autoip netif_autoip;
 static void netif_status_callback (struct netif *netif)
 {
   if (netif_is_up(netif)) {
-    LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE,
+    LWIP_DEBUGF(NETIF_DEBUG | LWIP_DBG_TRACE,
       ("netif_status_callback: %c%c UP, local interface IP is %s\n",
       netif->name[0], netif->name[1], ip4addr_ntoa(netif_ip4_addr(netif))));
   } else {
-    LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE,
+    LWIP_DEBUGF(NETIF_DEBUG | LWIP_DBG_TRACE,
       ("netif_status_callback: %c%c DOWN\n",
       netif->name[0], netif->name[1]));
   }
@@ -55,7 +55,7 @@ static void link_callback (struct netif *netif)
 {
   const char *updown = netif_is_link_up(netif)? "UP" : "DOWN";
 
-  LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE,
+  LWIP_DEBUGF(NETIF_DEBUG | LWIP_DBG_TRACE,
     ("link_callback: %c%c %s\n", netif->name[0], netif->name[1], updown));
 }
 #endif
@@ -213,7 +213,7 @@ static void netdev_config (netdev_config_t *dev, struct netif *netif)
 #endif
   } else {
     /* not a valid configuration */
-    LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE,
+    LWIP_DEBUGF(NETIF_DEBUG | LWIP_DBG_TRACE,
       ("netdev_config: %c%c has no valid config\n", netif->name[0], netif->name[1]));
   }
   netif->name[0] = 'e';			/* two chars within lwip */
