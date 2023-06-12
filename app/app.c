@@ -14,7 +14,6 @@
 /* XXX Setup full debugging. Also locking not used until now. */
 /* XXX Support re-initializing all network devices. Shutting down if. */
 /* XXX Support several network interfaces. */
-/* XXX netif is shadowed. */
 
 /* versatilepb maps LAN91C111 registers here */
 static void * const eth0_addr = (void * const) 0x10010000UL;
@@ -27,12 +26,12 @@ static s_lan91c111_state sls = {
 };
 
 /* XXX check LWIP_SINGLE_NETIF: */
-static struct netif netif;
+static struct netif e0netif;
 #if LWIP_DHCP
-static struct dhcp netif_dhcp;
+static struct dhcp e0netif_dhcp;
 #endif
 #if LWIP_AUTOIP
-static struct autoip netif_autoip;
+static struct autoip e0netif_autoip;
 #endif
 
 #if LWIP_NETIF_STATUS_CALLBACK
@@ -77,7 +76,8 @@ static int process_frames (r16 *frame, int frame_len)
 #if ETH_PAD_SIZE
       (void) pbuf_add_header(p, ETH_PAD_SIZE);
 #endif
-      if (ERR_OK != netif.input(p, &netif)) {
+      /* XXX dynamically find correct device */
+      if (ERR_OK != e0netif.input(p, &e0netif)) {
         (void) pbuf_free(p);
         LINK_STATS_INC(link.drop);
       }
@@ -95,7 +95,7 @@ static err_t netif_output (struct netif *netif __unused, struct pbuf *p)
   unsigned int length = p->tot_len - ETH_PAD_SIZE;
   unsigned char mac_send_buffer[length];		/* XXX stack needs to be big enough */
 
-  (void) netif;
+  LWIP_UNUSED_ARG(netif);
   LINK_STATS_INC(link.xmit);
   if (length != pbuf_copy_partial(p, mac_send_buffer, length, ETH_PAD_SIZE)) {
     LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE, ("netif_output: not copying whole packet: %u\n", length));
@@ -140,6 +140,8 @@ typedef struct {
   ip4_addr_t netmask;
   ip4_addr_t gw;
   unsigned int mtu;
+  /* no hostname and routing config requested until now */
+  unsigned int default_netif;
 
   /* additional network */
 #if 0
@@ -172,7 +174,10 @@ static err_t mynetif_init (struct netif *netif)
   netdev_config_t *dev = netif->state;
 
 #if LWIP_NETIF_HOSTNAME
+  /* LWIP_NETIF_HOSTNAME should not be set. If this is set and also LWIP_DHCP_DISCOVER_ADD_HOSTNAME
+   * then dhcp requests will contain this hostname. */
   netif->hostname = "lwip";
+  #warning "LWIP_NETIF_HOSTNAME should not be set"
 #endif
   netif->linkoutput = &netif_output;
   netif->output = &etharp_output;
@@ -194,7 +199,8 @@ static err_t mynetif_init (struct netif *netif)
   return ERR_OK;
 }
 
-static void netdev_config (netdev_config_t *dev, struct netif *netif)
+static void netdev_config (netdev_config_t *dev, struct netif *netif,
+  struct dhcp *netif_dhcp, struct autoip *netif_autoip)
 {
   unsigned int mode = get_mode(dev);
   if (mode == NET_STATIC) {
@@ -204,12 +210,12 @@ static void netdev_config (netdev_config_t *dev, struct netif *netif)
     ip4_addr_set_zero(&dev->netmask);
     ip4_addr_set_zero(&dev->gw);
     /* If not done, dhcp_start() will allocate it dynamically: */
-    dhcp_set_struct(netif, &netif_dhcp);
+    dhcp_set_struct(netif, netif_dhcp);
 #endif
 #if LWIP_AUTOIP
   } else if (mode == NET_AUTOIP) {
     /* If not done, autoip_start() will allocate it dynamically: */
-    autoip_set_struct(netif, &netif_autoip);
+    autoip_set_struct(netif, netif_autoip);
 #endif
   } else {
     /* not a valid configuration */
@@ -226,8 +232,10 @@ static void netdev_config (netdev_config_t *dev, struct netif *netif)
 #if LWIP_NETIF_LINK_CALLBACK
   netif_set_link_callback(netif, link_callback);
 #endif
-  /* Setting default route to this interface, this is "netif_default" as global var: */
-  netif_set_default(netif);
+  if (dev->default_netif) {
+    /* Setting default route to this interface, this is "netif_default" as global var: */
+    netif_set_default(netif);
+  }
   /* Check if link up for the ethernet device can be set:
    * XXX This should be confirmed by the hardware ethernet driver: */
   netif_set_link_up(netif);
@@ -249,6 +257,12 @@ static void netdev_config (netdev_config_t *dev, struct netif *netif)
 #endif
 }
 
+static void netdev_config_remove (netdev_config_t *dev __unused, struct netif *netif)
+{
+  LWIP_UNUSED_ARG(dev);
+  netif_remove(netif);
+}
+
 /* Define ethernet device default config: */
 #if 0					/* XXX For now test with static IPs: */
 static netdev_config_t e0 = {
@@ -259,7 +273,8 @@ static netdev_config_t e0 = {
 #define MY_IP4_ADDR(a, b, c, d) PP_HTONL(LWIP_MAKEU32((a), (b), (c), (d)))
   .ipaddr = { MY_IP4_ADDR(10, 0, 2, 99) },
   .netmask = { MY_IP4_ADDR(255, 255, 0, 0) },
-  .gw = { MY_IP4_ADDR(10, 0, 0, 1) }
+  .gw = { MY_IP4_ADDR(10, 0, 0, 1) },
+  .default_netif = 1U
 };
 #elif 1
 /* This is default net config: DHCP with fallback to AutoIP: */
@@ -278,6 +293,7 @@ static netdev_config_t e0 = {
   .ipaddr = NET_DHCP
 #endif
 #endif
+  .default_netif = 1U
 };
 #else
 /* This is AutoIP config: */
@@ -288,6 +304,7 @@ static netdev_config_t e0 = {
 #else
   .ipaddr = NET_AUTOIP
 #endif
+  .default_netif = 1U
 };
 #endif
 
@@ -297,31 +314,60 @@ static void net_config_read (void)
   /* Change e0 with new values. */
 }
 
-void start_lwip(void)
+#if NO_SYS
+static void test_init (void)
+#else
+static void test_init (sys_sem_t *init_sem)
+#endif
 {
-  srand((unsigned int)time(0));
-  /* srand(read_rtc()); */
-
-  lwip_init();
-
   net_config_read();
 
   nr_lan91c111_reset(eth0_addr, &sls, &sls);
   (void) nr_lan91c111_set_promiscuous(eth0_addr, &sls, 1);
 
 #if 0
-  (void) memset(&netif, '\0', sizeof(netif));
+  (void) memset(&e0netif, '\0', sizeof(e0netif));
 #if LWIP_DHCP
-  (void) memset(&netif_dhcp, '\0', sizeof(netif_dhcp));
+  (void) memset(&e0netif_dhcp, '\0', sizeof(e0netif_dhcp));
 #endif
 #if LWIP_AUTOIP
-  (void) memset(&netif_autoip, '\0', sizeof(netif_autoip));
+  (void) memset(&e0netif_autoip, '\0', sizeof(e0netif_autoip));
 #endif
 #endif
-  netdev_config(&e0, &netif);
+  netdev_config(&e0, &e0netif, &e0netif_dhcp, &e0netif_autoip);
 
-  while (1) {
+#if !NO_SYS
+  sys_sem_signal(init_sem);
+#endif
+}
+
+static unsigned int keep_running = 1U;
+
+void start_lwip (void)
+{
+#if !NO_SYS
+  err_t err;
+  sys_sem_t init_sem;
+#endif
+
+  srand((unsigned int)time(NULL));
+  /* XXX srand(read_rtc()); */
+
+#if NO_SYS
+  lwip_init();
+  test_init();
+  while (keep_running) {
     (void) nr_lan91c111_check_for_events(eth0_addr, &sls, process_frames);
     sys_check_timeouts();
+    /* XXX netif_poll_all(); */
   }
+  netdev_config_remove(&e0, &e0netif);
+#else
+  err = sys_sem_new(&init_sem, 0);
+  LWIP_ASSERT("failed to create init_sem", err == ERR_OK);
+  LWIP_UNUSED_ARG(err);
+  tcpip_init(test_init, &init_sem);
+  sys_sem_wait(&init_sem);
+  sys_sem_free(&init_sem);
+#endif
 }

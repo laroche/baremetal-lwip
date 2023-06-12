@@ -694,7 +694,7 @@
  * on a 32-bit boundary, so setting this to 2 can speed up 32-bit-platforms.
  */
 #if !defined ETH_PAD_SIZE || defined __DOXYGEN__
-//#define ETH_PAD_SIZE                    2
+/* #define ETH_PAD_SIZE                    2 */
 #define ETH_PAD_SIZE                    0
 #endif
 
