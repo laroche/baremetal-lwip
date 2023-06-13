@@ -12,8 +12,9 @@
 #include "eth_driver.h"
 
 /* XXX Setup full debugging. Also locking not used until now. */
-/* XXX Support re-initializing all network devices. Shutting down if. */
+/* XXX Test re-initializing of network devices. */
 /* XXX Support several network interfaces. */
+/* XXX Add ntp setup. */
 
 /* versatilepb maps LAN91C111 registers here */
 static void * const eth0_addr = (void * const) 0x10010000UL;
@@ -76,7 +77,7 @@ static int process_frames (r16 *frame, int frame_len)
 #if ETH_PAD_SIZE
       (void) pbuf_add_header(p, ETH_PAD_SIZE);
 #endif
-      /* XXX dynamically find correct device */
+      /* XXX dynamically find correct device, check e0netif.input != NULL */
       if (ERR_OK != e0netif.input(p, &e0netif)) {
         (void) pbuf_free(p);
         LINK_STATS_INC(link.drop);
@@ -202,7 +203,11 @@ static err_t mynetif_init (struct netif *netif)
 static void netdev_config (netdev_config_t *dev, struct netif *netif,
   struct dhcp *netif_dhcp, struct autoip *netif_autoip)
 {
-  unsigned int mode = get_mode(dev);
+  unsigned int mode;
+
+  (void) memset(netif, '\0', sizeof(struct netif));
+
+  mode = get_mode(dev);
   if (mode == NET_STATIC) {
 #if LWIP_DHCP
   } else if (MODE_DHCP(mode)) {
@@ -257,10 +262,28 @@ static void netdev_config (netdev_config_t *dev, struct netif *netif,
 #endif
 }
 
-static void netdev_config_remove (netdev_config_t *dev __unused, struct netif *netif)
+static void netdev_config_remove (netdev_config_t *dev, struct netif *netif,
+  struct dhcp *netif_dhcp, struct autoip *netif_autoip)
 {
-  LWIP_UNUSED_ARG(dev);
+  unsigned int mode = get_mode(dev);
+  if (mode == NET_STATIC) {
+#if LWIP_DHCP
+  } else if (MODE_DHCP(mode)) {
+    dhcp_cleanup(netif);
+#endif
+#if LWIP_AUTOIP
+  } else if (mode == NET_AUTOIP) {
+    autoip_remove_struct(netif);
+#endif
+  } else {
+    /* not a valid configuration */
+    LWIP_DEBUGF(NETIF_DEBUG | LWIP_DBG_TRACE,
+      ("netdev_config_remove: %c%c has no valid config\n", netif->name[0], netif->name[1]));
+  }
   netif_remove(netif);
+  (void) memset(netif, '\0', sizeof(struct netif));
+  (void) memset(netif_dhcp, '\0', sizeof(struct dhcp));
+  (void) memset(netif_autoip, '\0', sizeof(struct autoip));
 }
 
 /* Define ethernet device default config: */
@@ -315,9 +338,9 @@ static void net_config_read (void)
 }
 
 #if NO_SYS
-static void test_init (void)
+static void lwip_config_init (void)
 #else
-static void test_init (sys_sem_t *init_sem)
+static void lwip_config_init (sys_sem_t *init_sem)
 #endif
 {
   net_config_read();
@@ -325,15 +348,6 @@ static void test_init (sys_sem_t *init_sem)
   nr_lan91c111_reset(eth0_addr, &sls, &sls);
   (void) nr_lan91c111_set_promiscuous(eth0_addr, &sls, 1);
 
-#if 0
-  (void) memset(&e0netif, '\0', sizeof(e0netif));
-#if LWIP_DHCP
-  (void) memset(&e0netif_dhcp, '\0', sizeof(e0netif_dhcp));
-#endif
-#if LWIP_AUTOIP
-  (void) memset(&e0netif_autoip, '\0', sizeof(e0netif_autoip));
-#endif
-#endif
   netdev_config(&e0, &e0netif, &e0netif_dhcp, &e0netif_autoip);
 
 #if !NO_SYS
@@ -341,7 +355,8 @@ static void test_init (sys_sem_t *init_sem)
 #endif
 }
 
-static unsigned int keep_running = 1U;
+/* Change from debugger to exit: */
+static volatile unsigned int keep_running = 1U;
 
 void start_lwip (void)
 {
@@ -355,18 +370,18 @@ void start_lwip (void)
 
 #if NO_SYS
   lwip_init();
-  test_init();
+  lwip_config_init();
   while (keep_running) {
     (void) nr_lan91c111_check_for_events(eth0_addr, &sls, process_frames);
     sys_check_timeouts();
     /* XXX netif_poll_all(); */
   }
-  netdev_config_remove(&e0, &e0netif);
+  netdev_config_remove(&e0, &e0netif, &e0netif_dhcp, &e0netif_autoip);
 #else
   err = sys_sem_new(&init_sem, 0);
   LWIP_ASSERT("failed to create init_sem", err == ERR_OK);
   LWIP_UNUSED_ARG(err);
-  tcpip_init(test_init, &init_sem);
+  tcpip_init(lwip_config_init, &init_sem);
   sys_sem_wait(&init_sem);
   sys_sem_free(&init_sem);
 #endif
