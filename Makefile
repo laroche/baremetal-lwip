@@ -44,12 +44,12 @@ LWIP_OBJS = $(addprefix $(BIN_DIR)/,\
               pbuf.o raw.o stats.o sys.o altcp.o altcp_alloc.o altcp_tcp.o \
               tcp.o tcp_in.o tcp_out.o timeouts.o udp.o icmp.o ip4.o \
               ip4_addr.o ip4_frag.o ethernet.o etharp.o acd.o dhcp.o \
-              autoip.o)
+              autoip.o sntp.o)
 
 LWIP_INCS = -I lwip/src -I lwip/src/include/ -I lwip/src/api/\
             -I lwip/src/core -I lwip/src/netif -I lwip/src/core/ipv4\
             -I lwip/src/include/lwip
-vpath %.c lwip/src/api/ lwip/src/core/ lwip/src/netif/ lwip/src/core/ipv4/\
+vpath %.c lwip/src/api/ lwip/src/core/ lwip/src/netif/ lwip/src/core/ipv4/ lwip/src/apps/sntp/ \
           $(PLATFORM_DIR) $(APP_DIR)
 
 # Detect Windows with two possible ways. On Linux start parallel builds:

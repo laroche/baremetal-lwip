@@ -2,6 +2,7 @@
 
 #include <sys/cdefs.h>
 #include <stdio.h>
+/* #include <time.h> */
 #include "lwip/netif.h"
 #include "netif/ethernet.h"
 #include "lwip/dhcp.h"
@@ -9,12 +10,12 @@
 #include "lwip/init.h"
 #include "lwip/etharp.h"
 #include "lwip/timeouts.h"
+#include "lwip/apps/sntp.h"
 #include "eth_driver.h"
 
 /* XXX Setup full debugging. Also locking not used until now. */
 /* XXX Test re-initializing of network devices. */
 /* XXX Support several network interfaces. */
-/* XXX Add ntp setup. */
 
 /* versatilepb maps LAN91C111 registers here */
 static void * const eth0_addr = (void * const) 0x10010000UL;
@@ -104,6 +105,57 @@ static err_t netif_output (struct netif *netif __unused, struct pbuf *p)
   nr_lan91c111_tx_frame(eth0_addr, &sls, mac_send_buffer, length);
   LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE, ("netif_output: sending ethernet frame with size: %u\n", length));
   return ERR_OK;
+}
+
+#if 0
+/* XXX unused? */
+static void sntp_set_system_time(u32_t sec)
+{
+  time_t current_time = (time_t) sec;
+  struct tm current_time_val;
+  char buf[32];
+
+#if defined(_WIN32) || defined(WIN32)
+  localtime_s(&current_time_val, &current_time);
+#else
+  localtime_r(&current_time, &current_time_val);
+#endif
+
+  strftime(buf, sizeof(buf), "%d.%m.%Y %H:%M:%S", &current_time_val);
+  LWIP_PLATFORM_DIAG(("SNTP time: %s\n", buf));
+}
+#endif
+
+/* Global network config settings. */
+typedef struct {
+#if LWIP_DHCP
+  unsigned int ntp_mode;				/* 1 = static ntp servers, 0 = dhcp */
+#endif
+
+  ip4_addr_t ntp1;
+  ip4_addr_t ntp2;
+  ip4_addr_t ntp3;
+
+#if 0
+  ip4_addr_t dns1;
+  ip4_addr_t dns2;
+#endif
+} net_config_t;
+
+static void net_config_init (net_config_t *net_config)
+{
+  /* sntp_setoperatingmode(SNTP_OPMODE_POLL); This is already default and never changed. */
+#if LWIP_DHCP
+  if (net_config->ntp_mode == 0U) {
+    sntp_servermode_dhcp(1);
+  } else
+#endif
+  {
+    /* sntp_setserver(0, netif_ip_gw4(netif_default)); */
+    sntp_setserver(0, &net_config->ntp1);
+    sntp_setserver(1, &net_config->ntp2);
+    sntp_setserver(2, &net_config->ntp3);
+  }
 }
 
 /* What type of network setup? */
@@ -286,6 +338,23 @@ static void netdev_config_remove (netdev_config_t *dev, struct netif *netif,
   (void) memset(netif_autoip, '\0', sizeof(struct autoip));
 }
 
+#define MY_IP4_ADDR(a, b, c, d) PP_HTONL(LWIP_MAKEU32((a), (b), (c), (d)))
+
+/* Define global net config: */
+static net_config_t mynet_config = {
+#if 1
+#if LWIP_DHCP
+  .ntp_mode = 0,
+#endif
+#else
+#if LWIP_DHCP
+  .ntp_mode = 1,
+#endif
+  .ntp1 = { MY_IP4_ADDR(10, 0, 2, 2) },
+  .ntp2 = { MY_IP4_ADDR(10, 0, 1, 1) }
+#endif
+};
+
 /* Define ethernet device default config: */
 #if 0					/* XXX For now test with static IPs: */
 static netdev_config_t e0 = {
@@ -293,7 +362,6 @@ static netdev_config_t e0 = {
 #if CONFIG_EXTRA_IP_TYPE
   .mode = NET_STATIC,
 #endif
-#define MY_IP4_ADDR(a, b, c, d) PP_HTONL(LWIP_MAKEU32((a), (b), (c), (d)))
   .ipaddr = { MY_IP4_ADDR(10, 0, 2, 99) },
   .netmask = { MY_IP4_ADDR(255, 255, 0, 0) },
   .gw = { MY_IP4_ADDR(10, 0, 0, 1) },
@@ -348,7 +416,11 @@ static void lwip_config_init (sys_sem_t *init_sem)
   nr_lan91c111_reset(eth0_addr, &sls, &sls);
   (void) nr_lan91c111_set_promiscuous(eth0_addr, &sls, 1);
 
+  net_config_init(&mynet_config);
+
   netdev_config(&e0, &e0netif, &e0netif_dhcp, &e0netif_autoip);
+
+  sntp_init();
 
 #if !NO_SYS
   sys_sem_signal(init_sem);

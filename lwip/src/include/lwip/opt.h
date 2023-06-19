@@ -950,14 +950,14 @@
  * void dhcp_set_ntp_servers(u8_t num_ntp_servers, ip_addr_t* ntp_server_addrs);
 */
 #if !defined LWIP_DHCP_GET_NTP_SRV || defined __DOXYGEN__
-#define LWIP_DHCP_GET_NTP_SRV           0
+#define LWIP_DHCP_GET_NTP_SRV           1
 #endif
 
 /**
  * The maximum of NTP servers requested
  */
 #if !defined LWIP_DHCP_MAX_NTP_SERVERS || defined __DOXYGEN__
-#define LWIP_DHCP_MAX_NTP_SERVERS       1
+#define LWIP_DHCP_MAX_NTP_SERVERS       3
 #endif
 
 /**
