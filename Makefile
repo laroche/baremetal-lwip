@@ -86,6 +86,8 @@ lwip : $(LWIP_LIB)
 $(LWIP_LIB) : $(LWIP_OBJS)
 	$(ARCHIVE) cr $@ $(LWIP_OBJS)
 
+$(LWIP_OBJS) $(APP_OBJS): Makefile
+
 $(BIN_DIR)/%.o : %.c
 	$(COMPILE) $(CFLAGS) -c $< -o $@
 
