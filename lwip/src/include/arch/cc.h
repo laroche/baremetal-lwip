@@ -51,4 +51,6 @@ typedef uintptr_t   mem_ptr_t;
 static inline u32_t sys_now(void) { return 0; /* return read_rtc() * 1000U; */ }
 #define LWIP_RAND() ((u32_t)rand())
 
+#define LWIP_TIMEVAL_PRIVATE 0
+
 #endif /* __ARCH_CC_H__ */

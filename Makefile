@@ -1,3 +1,6 @@
+# Compile together with FreeRTOS?
+FREERTOS = 0
+
 TOOLCHAIN = arm-none-eabi
 COMPILE   = $(TOOLCHAIN)-gcc
 ASSEMBLE  = $(TOOLCHAIN)-as
@@ -7,11 +10,11 @@ OBJCOPY   = $(TOOLCHAIN)-objcopy
 OBJDUMP   = $(TOOLCHAIN)-objdump
 SIZE      = $(TOOLCHAIN)-size
 
-CFLAGS  = -mcpu=arm926ej-s --specs=nano.specs --specs=nosys.specs -O2 -Wall -Wextra -pedantic -Wno-format -I $(PLATFORM_DIR)
+CFLAGS  = -mcpu=arm926ej-s --specs=nano.specs --specs=nosys.specs -g -O2 -Wall -Wextra -pedantic -Wno-format -I $(PLATFORM_DIR)
 #CFLAGS += -Wundef -Wwrite-strings -Wold-style-definition -Wunreachable-code -Waggregate-return -Wlogical-op -Wtrampolines
 #CFLAGS += -Wcast-align=strict -Wshadow -Wmissing-prototypes -Wredundant-decls -Wnested-externs -Wcast-qual -Wswitch-default
 #CFLAGS += -Wc90-c99-compat -Wc99-c11-compat -Wconversion
-ASFLAGS = -mcpu=arm926ej-s
+ASFLAGS = -mcpu=arm926ej-s -g
 
 QEMU    = qemu-system-arm
 QFLAGS  = -M versatilepb -m 128M -nographic
@@ -19,9 +22,9 @@ QFLAGS  = -M versatilepb -m 128M -nographic
 #QNET    = -net nic -net tap,ifname=tap0
 QNET    = -net nic -net user
 
-BIN_DIR      = ./obj
-APP_DIR      = ./app
-PLATFORM_DIR = ./platform
+BIN_DIR      = obj
+APP_DIR      = app
+PLATFORM_DIR = platform
 LDSCRIPT     = $(PLATFORM_DIR)/layout.ld
 LINK_TARGET  = $(BIN_DIR)/app.elf
 MAPFILE      = $(BIN_DIR)/app.map
@@ -44,13 +47,23 @@ LWIP_OBJS = $(addprefix $(BIN_DIR)/,\
               pbuf.o raw.o stats.o sys.o altcp.o altcp_alloc.o altcp_tcp.o \
               tcp.o tcp_in.o tcp_out.o timeouts.o udp.o icmp.o ip4.o \
               ip4_addr.o ip4_frag.o ethernet.o etharp.o acd.o dhcp.o \
-              autoip.o sntp.o)
+              autoip.o sntp.o tcpip.o)
 
-LWIP_INCS = -I lwip/src -I lwip/src/include/ -I lwip/src/api/\
+LWIP_INCS = -I lwip/src -I lwip/src/include -I lwip/src/api\
             -I lwip/src/core -I lwip/src/netif -I lwip/src/core/ipv4\
             -I lwip/src/include/lwip
+
+ifeq ($(FREERTOS),1)
+#LWIP_OBJS += $(addprefix $(BIN_DIR)/, sys_arch.o sockets.o)
+LWIP_INCS += -I lwip/contrib/ports/freertos/include
+CFLAGS += -DUSE_FREERTOS
+vpath %.c lwip/src/api/ lwip/src/core/ lwip/src/netif/ lwip/src/core/ipv4/ lwip/src/apps/sntp/ \
+          $(PLATFORM_DIR) $(APP_DIR) lwip/contrib/ports/freertos/
+else
+LWIP_OBJS += $(addprefix $(BIN_DIR)/, sockets.o err.o)
 vpath %.c lwip/src/api/ lwip/src/core/ lwip/src/netif/ lwip/src/core/ipv4/ lwip/src/apps/sntp/ \
           $(PLATFORM_DIR) $(APP_DIR)
+endif
 
 # Detect Windows with two possible ways. On Linux start parallel builds:
 ifeq ($(OS),Windows_NT)
@@ -76,10 +89,10 @@ $(LWIP_LIB) : $(LWIP_OBJS)
 	$(ARCHIVE) cr $@ $(LWIP_OBJS)
 
 $(BIN_DIR)/%.o : %.c
-	$(COMPILE) -g -o $@ -c $(CFLAGS) $(LWIP_INCS) $<
+	$(COMPILE) $(CFLAGS) $(LWIP_INCS) -c $< -o $@
 
 $(BIN_DIR)/%.o : $(PLATFORM_DIR)/%.s
-	$(ASSEMBLE) -g -o $@ -c $(ASFLAGS) $<
+	$(ASSEMBLE) $(ASFLAGS) -c $< -o $@
 
 # -Wl,--no-warn-rwx-segments
 $(LINK_TARGET) : $(LWIP_OBJS) $(APP_OBJS) $(LDSCRIPT)

@@ -10,12 +10,19 @@
 #include "lwip/init.h"
 #include "lwip/etharp.h"
 #include "lwip/timeouts.h"
+#if !NO_SYS
+#include "lwip/tcpip.h"
+#endif
 #include "lwip/apps/sntp.h"
 #include "eth_driver.h"
 
 /* XXX Setup full debugging. Also locking not used until now. */
 /* XXX Test re-initializing of network devices. */
 /* XXX Support several network interfaces. */
+/* XXX Support static config of ntp hostname and use dns to resolve. */
+/* XXX Check exact working of sntp_init() and dhcp answers. */
+/* XXX init_sem could be left out, this has no real meaning. */
+/* XXX How are packets recived for NO_SYS=0? Main loop checks. */
 
 /* versatilepb maps LAN91C111 registers here */
 static void * const eth0_addr = (void * const) 0x10010000UL;
@@ -36,6 +43,13 @@ static struct dhcp e0netif_dhcp;
 static struct autoip e0netif_autoip;
 #endif
 
+#define CONFIG_WAIT_FOR_IP 0
+
+#if CONFIG_WAIT_FOR_IP
+static unsigned int wait_for_ip;
+static unsigned int sntp_started;
+#endif
+
 #if LWIP_NETIF_STATUS_CALLBACK
 static void netif_status_callback (struct netif *netif)
 {
@@ -43,6 +57,15 @@ static void netif_status_callback (struct netif *netif)
     LWIP_DEBUGF(NETIF_DEBUG | LWIP_DBG_TRACE,
       ("netif_status_callback: %c%c UP, local interface IP is %s\n",
       netif->name[0], netif->name[1], ip4addr_ntoa(netif_ip4_addr(netif))));
+#if CONFIG_WAIT_FOR_IP
+    if (wait_for_ip && netif_ip4_addr(netif)->addr != ip_addr_any.addr) {
+      wait_for_ip -= 1U;
+      if (sntp_started == 0U && wait_for_ip == 0U) {
+        sntp_started = 1U;
+        sntp_init();
+      }
+    }
+#endif
   } else {
     LWIP_DEBUGF(NETIF_DEBUG | LWIP_DBG_TRACE,
       ("netif_status_callback: %c%c DOWN\n",
@@ -220,8 +243,6 @@ static __always_inline unsigned int get_mode (netdev_config_t *dev)
 #endif
 }
 
-static const char zero_network_hwaddr[6];		/* Do not change, will be zero at runtime. */
-
 static err_t mynetif_init (struct netif *netif)
 {
   netdev_config_t *dev = netif->state;
@@ -244,8 +265,8 @@ static err_t mynetif_init (struct netif *netif)
 #endif
     ;
   LWIP_ASSERT("Ethernet hwaddr (MAC) strange size", sizeof(dev->hwaddr) == 6U);
-  LWIP_ASSERT("Ethernet hwaddr (MAC) from zero device strange size", sizeof(dev->hwaddr) == sizeof(zero_network_hwaddr));
-  if (0 != memcmp(dev->hwaddr, zero_network_hwaddr, sizeof(dev->hwaddr))) {
+  LWIP_ASSERT("Ethernet hwaddr (MAC) from zero device strange size", sizeof(dev->hwaddr) == sizeof(ethzero));
+  if (0 != memcmp(dev->hwaddr, &ethzero, sizeof(dev->hwaddr))) {
     (void) memcpy(netif->hwaddr, dev->hwaddr, sizeof(dev->hwaddr));
     netif->hwaddr_len = 6U;
   }
@@ -379,9 +400,9 @@ static netdev_config_t e0 = {
 #endif
 #else
 #if LWIP_AUTOIP
-  .ipaddr = NET_DHCP_AUTOIP
+  .ipaddr = NET_DHCP_AUTOIP,
 #else
-  .ipaddr = NET_DHCP
+  .ipaddr = NET_DHCP,
 #endif
 #endif
   .default_netif = 1U
@@ -408,7 +429,7 @@ static void net_config_read (void)
 #if NO_SYS
 static void lwip_config_init (void)
 #else
-static void lwip_config_init (sys_sem_t *init_sem)
+static void lwip_config_init (void *init_sem)
 #endif
 {
   net_config_read();
@@ -416,14 +437,23 @@ static void lwip_config_init (sys_sem_t *init_sem)
   nr_lan91c111_reset(eth0_addr, &sls, &sls);
   (void) nr_lan91c111_set_promiscuous(eth0_addr, &sls, 1);
 
+#if CONFIG_WAIT_FOR_IP
+  sntp_started = 0U;
+  wait_for_ip = 0U;
+#endif
   net_config_init(&mynet_config);
 
+#if CONFIG_WAIT_FOR_IP
+  wait_for_ip += 1U;
+#endif
   netdev_config(&e0, &e0netif, &e0netif_dhcp, &e0netif_autoip);
 
+#if !CONFIG_WAIT_FOR_IP
   sntp_init();
+#endif
 
 #if !NO_SYS
-  sys_sem_signal(init_sem);
+  sys_sem_signal((sys_sem_t *) init_sem);
 #endif
 }
 
@@ -448,7 +478,6 @@ void start_lwip (void)
     sys_check_timeouts();
     /* XXX netif_poll_all(); */
   }
-  netdev_config_remove(&e0, &e0netif, &e0netif_dhcp, &e0netif_autoip);
 #else
   err = sys_sem_new(&init_sem, 0);
   LWIP_ASSERT("failed to create init_sem", err == ERR_OK);
@@ -456,5 +485,8 @@ void start_lwip (void)
   tcpip_init(lwip_config_init, &init_sem);
   sys_sem_wait(&init_sem);
   sys_sem_free(&init_sem);
+  while (keep_running) {
+  }
 #endif
+  netdev_config_remove(&e0, &e0netif, &e0netif_dhcp, &e0netif_autoip);
 }

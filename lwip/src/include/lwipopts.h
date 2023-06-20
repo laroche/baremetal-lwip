@@ -62,7 +62,11 @@
  * NO_SYS==1: Provides VERY minimal functionality. Otherwise,
  * use lwIP facilities.
  */
+#if defined(USE_FREERTOS) && USE_FREERTOS == 1
+#define NO_SYS                          0
+#else
 #define NO_SYS                          1
+#endif
 
 /*
    ------------------------------------
@@ -319,7 +323,7 @@
  * LWIP_DNS==1: Turn on DNS module. UDP must be available for DNS
  * transport.
  */
-#define LWIP_DNS                        0
+#define LWIP_DNS                        1
 
 /*
    ---------------------------------
@@ -341,7 +345,8 @@
  */
 #define LWIP_TCP                        1
 
-#define LWIP_LISTEN_BACKLOG             0
+#define TCP_LISTEN_BACKLOG              1
+
 
 /*
    ----------------------------------
@@ -392,7 +397,11 @@
 /**
  * LWIP_SOCKET==1: Enable Socket API (require to use sockets.c)
  */
+#if NO_SYS
 #define LWIP_SOCKET                     0
+#else
+#define LWIP_SOCKET                     1
+#endif
 
 /**
  * SO_REUSE==1: Enable SO_REUSEADDR
