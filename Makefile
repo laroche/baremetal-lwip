@@ -15,6 +15,8 @@ CFLAGS  = -mcpu=arm926ej-s --specs=nano.specs --specs=nosys.specs -g -O2 -Wall -
 #CFLAGS += -Wcast-align=strict -Wshadow -Wmissing-prototypes -Wredundant-decls -Wnested-externs -Wcast-qual -Wswitch-default
 #CFLAGS += -Wc90-c99-compat -Wc99-c11-compat -Wconversion
 ASFLAGS = -mcpu=arm926ej-s -g
+LDSCRIPT = $(PLATFORM_DIR)/layout.ld
+LFLAGS = --specs=nano.specs --specs=nosys.specs -nostartfiles -T $(LDSCRIPT) -g
 
 QEMU    = qemu-system-arm
 QFLAGS  = -M versatilepb -m 128M -nographic
@@ -25,7 +27,6 @@ QNET    = -net nic -net user
 BIN_DIR      = obj
 APP_DIR      = app
 PLATFORM_DIR = platform
-LDSCRIPT     = $(PLATFORM_DIR)/layout.ld
 LINK_TARGET  = $(BIN_DIR)/app.elf
 MAPFILE      = $(BIN_DIR)/app.map
 LISTFILE     = $(BIN_DIR)/app.lst
@@ -93,8 +94,7 @@ $(BIN_DIR)/%.o : $(PLATFORM_DIR)/%.s
 
 # -Wl,--no-warn-rwx-segments
 $(LINK_TARGET) : $(LWIP_OBJS) $(APP_OBJS) $(LDSCRIPT)
-	$(LINKER) --specs=nano.specs --specs=nosys.specs -nostartfiles -T $(LDSCRIPT) -g \
-    $(LWIP_OBJS) $(APP_OBJS) -o $(LINK_TARGET) -Wl,-Map=$(MAPFILE)
+	$(LINKER) $(LFLAGS) $(LWIP_OBJS) $(APP_OBJS) -o $(LINK_TARGET) -Wl,-Map=$(MAPFILE)
 	$(OBJDUMP) -d $@ > $(LISTFILE)
 	$(SIZE) $@
 
