@@ -24,6 +24,10 @@
 /* XXX init_sem could be left out, this has no real meaning. */
 /* XXX How are packets recived for NO_SYS=0? Main loop checks. */
 
+/* lwip does not have its own config setting to enable/disable
+ * ntp client code on compile time, so define our own: */
+#define LWIP_SNTP 1
+
 /* versatilepb maps LAN91C111 registers here */
 static void * const eth0_addr = (void * const) 0x10010000UL;
 
@@ -167,6 +171,7 @@ typedef struct {
 
 static void net_config_init (net_config_t *net_config)
 {
+#if LWIP_SNTP
   /* sntp_setoperatingmode(SNTP_OPMODE_POLL); This is already default and never changed. */
 #if LWIP_DHCP
   if (net_config->ntp_mode == 0U) {
@@ -179,6 +184,7 @@ static void net_config_init (net_config_t *net_config)
     sntp_setserver(1, &net_config->ntp2);
     sntp_setserver(2, &net_config->ntp3);
   }
+#endif
 }
 
 /* What type of network setup? */
@@ -449,7 +455,9 @@ static void lwip_config_init (void *init_sem)
   netdev_config(&e0, &e0netif, &e0netif_dhcp, &e0netif_autoip);
 
 #if !CONFIG_WAIT_FOR_IP
+#if LWIP_SNTP
   sntp_init();
+#endif
 #endif
 
 #if !NO_SYS
