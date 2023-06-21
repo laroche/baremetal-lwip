@@ -1,22 +1,24 @@
 # Compile together with FreeRTOS?
 FREERTOS = 0
 
-TOOLCHAIN = arm-none-eabi
-COMPILE   = $(TOOLCHAIN)-gcc
-ASSEMBLE  = $(TOOLCHAIN)-as
-ARCHIVE   = $(TOOLCHAIN)-ar
-LINKER    = $(TOOLCHAIN)-gcc
-OBJCOPY   = $(TOOLCHAIN)-objcopy
-OBJDUMP   = $(TOOLCHAIN)-objdump
-SIZE      = $(TOOLCHAIN)-size
+TOOLCHAIN = arm-none-eabi-
+COMPILE   = $(TOOLCHAIN)gcc
+ARCHIVE   = $(TOOLCHAIN)ar
+LINKER    = $(TOOLCHAIN)gcc
+OBJCOPY   = $(TOOLCHAIN)objcopy
+OBJDUMP   = $(TOOLCHAIN)objdump
+SIZE      = $(TOOLCHAIN)size
 
 CFLAGS  = -mcpu=arm926ej-s --specs=nano.specs --specs=nosys.specs -g -O2 -Wall -Wextra -pedantic -Wno-format
 #CFLAGS += -Wundef -Wwrite-strings -Wold-style-definition -Wunreachable-code -Waggregate-return -Wlogical-op -Wtrampolines
 #CFLAGS += -Wcast-align=strict -Wshadow -Wmissing-prototypes -Wredundant-decls -Wnested-externs -Wcast-qual -Wswitch-default
 #CFLAGS += -Wc90-c99-compat -Wc99-c11-compat -Wconversion
-ASFLAGS = -mcpu=arm926ej-s -g
-LDSCRIPT = $(PLATFORM_DIR)/layout.ld
-LFLAGS = --specs=nano.specs --specs=nosys.specs -nostartfiles -T $(LDSCRIPT) -g
+LFLAGS = --specs=nano.specs --specs=nosys.specs -nostartfiles -T $(PLATFORM_DIR)/layout.ld -g
+
+#CFLAGS += -ffunction-sections
+#LFLAGS += -Wl,--gc-sections
+# For debugging:
+#LFLAGS += -Wl,--print-gc-sections
 
 QEMU    = qemu-system-arm
 QFLAGS  = -M versatilepb -m 128M -nographic
@@ -48,15 +50,16 @@ LWIP_OBJS = $(addprefix $(BIN_DIR)/,\
               pbuf.o raw.o stats.o sys.o altcp.o altcp_alloc.o altcp_tcp.o \
               tcp.o tcp_in.o tcp_out.o timeouts.o udp.o icmp.o ip4.o \
               ip4_addr.o ip4_frag.o ethernet.o etharp.o acd.o dhcp.o \
-              autoip.o sntp.o tcpip.o)
+              autoip.o sntp.o tcpip.o err.o sockets.o)
 
 ifeq ($(FREERTOS),1)
-#LWIP_OBJS += $(addprefix $(BIN_DIR)/, sys_arch.o sockets.o)
-CFLAGS += -DUSE_FREERTOS -I lwip/contrib/ports/freertos/include
+LWIP_OBJS += $(addprefix $(BIN_DIR)/, sys_arch.o tasks.o list.o queue.o timers.o heap_3.o port.o portISR.o timer.o interrupt.o uart.o)
+CFLAGS += -DUSE_LARGE_DEMO -DUSE_NEWLIB
+CFLAGS += -DUSE_FREERTOS -DLWIP_PROVIDE_ERRNO -I platform-freertos -I FreeRTOS/include
+CFLAGS += -I lwip/contrib/ports/freertos/include -I FreeRTOS/portable/GCC/ARM926EJ-S
 vpath %.c lwip/src/api/ lwip/src/core/ lwip/src/netif/ lwip/src/core/ipv4/ lwip/src/apps/sntp/ \
-          $(PLATFORM_DIR) $(APP_DIR) lwip/contrib/ports/freertos/
+          $(PLATFORM_DIR) $(APP_DIR) platform-freertos/ lwip/contrib/ports/freertos/ FreeRTOS/ FreeRTOS/portable/GCC/ARM926EJ-S/ FreeRTOS/portable/MemMang/
 else
-LWIP_OBJS += $(addprefix $(BIN_DIR)/, sockets.o err.o)
 vpath %.c lwip/src/api/ lwip/src/core/ lwip/src/netif/ lwip/src/core/ipv4/ lwip/src/apps/sntp/ \
           $(PLATFORM_DIR) $(APP_DIR)
 endif
@@ -86,16 +89,16 @@ lwip : $(LWIP_LIB)
 $(LWIP_LIB) : $(LWIP_OBJS)
 	$(ARCHIVE) cr $@ $(LWIP_OBJS)
 
-$(LWIP_OBJS) $(APP_OBJS): Makefile
+$(BIN_DIR) :
+	mkdir -p $@
+
+$(LWIP_OBJS) $(APP_OBJS): Makefile | $(BIN_DIR)
 
 $(BIN_DIR)/%.o : %.c
 	$(COMPILE) $(CFLAGS) -c $< -o $@
 
-$(BIN_DIR)/%.o : $(PLATFORM_DIR)/%.s
-	$(ASSEMBLE) $(ASFLAGS) -c $< -o $@
-
 # -Wl,--no-warn-rwx-segments
-$(LINK_TARGET) : $(LWIP_OBJS) $(APP_OBJS) $(LDSCRIPT)
+$(LINK_TARGET) : $(LWIP_OBJS) $(APP_OBJS) $(PLATFORM_DIR)/layout.ld
 	$(LINKER) $(LFLAGS) $(LWIP_OBJS) $(APP_OBJS) -o $(LINK_TARGET) -Wl,-Map=$(MAPFILE)
 	$(OBJDUMP) -d $@ > $(LISTFILE)
 	$(SIZE) $@
@@ -104,7 +107,7 @@ $(BIN_TARGET) : $(LINK_TARGET)
 	$(OBJCOPY) -O binary $(LINK_TARGET) $(BIN_TARGET)
 
 clean : 
-	rm -f $(BIN_DIR)/*
+	rm -fr $(BIN_DIR)
 
 run : $(BIN_TARGET)
 	@echo "Starting qemu, use \"ctrl-a x\" to exit from qemu:"

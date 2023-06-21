@@ -64,6 +64,9 @@
  */
 #if defined(USE_FREERTOS) && USE_FREERTOS == 1
 #define NO_SYS                          0
+#define TCPIP_MBOX_SIZE               200
+#define DEFAULT_THREAD_STACKSIZE     8192
+#define LWIP_FREERTOS_CHECK_CORE_LOCKING 1
 #else
 #define NO_SYS                          1
 #endif
