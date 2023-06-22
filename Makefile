@@ -16,6 +16,7 @@ CFLAGS  = -mcpu=arm926ej-s --specs=nano.specs --specs=nosys.specs -g -O2 -Wall -
 LFLAGS = --specs=nano.specs --specs=nosys.specs -nostartfiles -T $(PLATFORM_DIR)/layout.ld -g
 
 #CFLAGS += -ffunction-sections
+# "-fdata-sections" leads to non-working image
 #LFLAGS += -Wl,--gc-sections
 # For debugging:
 #LFLAGS += -Wl,--print-gc-sections
