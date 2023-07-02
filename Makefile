@@ -54,7 +54,7 @@ LWIP_OBJS = $(addprefix $(BIN_DIR)/,\
               autoip.o sntp.o tcpip.o err.o sockets.o)
 
 ifeq ($(FREERTOS),1)
-LWIP_OBJS += $(addprefix $(BIN_DIR)/, sys_arch.o tasks.o list.o queue.o timers.o heap_3.o port.o portISR.o timer.o interrupt.o uart.o)
+LWIP_OBJS += $(addprefix $(BIN_DIR)/, sys_arch.o tasks.o list.o queue.o timers.o heap_3.o port.o portISR.o timer.o interrupt.o uart.o hw_init.o)
 CFLAGS += -DUSE_LARGE_DEMO -DUSE_NEWLIB
 CFLAGS += -DUSE_FREERTOS -DLWIP_PROVIDE_ERRNO -I platform-freertos -I FreeRTOS/include
 CFLAGS += -I lwip/contrib/ports/freertos/include -I FreeRTOS/portable/GCC/ARM926EJ-S
