@@ -9,7 +9,7 @@ OBJCOPY   = $(TOOLCHAIN)objcopy
 OBJDUMP   = $(TOOLCHAIN)objdump
 SIZE      = $(TOOLCHAIN)size
 
-CFLAGS  = -mcpu=arm926ej-s --specs=nano.specs --specs=nosys.specs -g -O2 -Wall -Wextra -pedantic -Wno-format
+CFLAGS  = -mcpu=arm926ej-s --specs=nano.specs --specs=nosys.specs -g -O2 -Wall -Wextra -pedantic
 #CFLAGS += -Wundef -Wwrite-strings -Wold-style-definition -Wunreachable-code -Waggregate-return -Wlogical-op -Wtrampolines
 #CFLAGS += -Wcast-align=strict -Wshadow -Wmissing-prototypes -Wredundant-decls -Wnested-externs -Wcast-qual -Wswitch-default
 #CFLAGS += -Wc90-c99-compat -Wc99-c11-compat -Wconversion

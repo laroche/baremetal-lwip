@@ -806,7 +806,7 @@ int nr_lan91c111_dump_registers
 #if PLUGS_DEBUG
     printf("-------------------------\n");
 
-    printf("Hardware base address = 0x%08x \n",hardware_base_address);
+    printf("Hardware base address = 0x%08lx \n", (unsigned long int)hardware_base_address);
     printf("\nBANK 0 registers:\n\n");
     e->bank_0.np_bank = 0;               // select bank zero:
     printf("np_tcr         = 0x%04x\n", e->bank_0.np_tcr);

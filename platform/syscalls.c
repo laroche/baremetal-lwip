@@ -73,7 +73,7 @@ __dead2 void abort (void)
   #error "Unsupported compiler."
 #endif
 
-  printf("Abort called from instruction address 0x%x.\n", addr);
+  printf("Abort called from instruction address 0x%lx.\n", addr);
 
   _exit(1);
 }
