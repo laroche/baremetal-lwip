@@ -17,6 +17,7 @@ LFLAGS = --specs=nano.specs --specs=nosys.specs -nostartfiles -T $(PLATFORM_DIR)
 
 #CFLAGS += -ffunction-sections
 # "-fdata-sections" leads to non-working image
+#CFLAGS += -fdata-sections
 #LFLAGS += -Wl,--gc-sections
 # For debugging:
 #LFLAGS += -Wl,--print-gc-sections
@@ -59,7 +60,8 @@ CFLAGS += -DUSE_LARGE_DEMO -DUSE_NEWLIB
 CFLAGS += -DUSE_FREERTOS -DLWIP_PROVIDE_ERRNO -I platform-freertos -I FreeRTOS/include
 CFLAGS += -I lwip/contrib/ports/freertos/include -I FreeRTOS/portable/GCC/ARM926EJ-S
 vpath %.c lwip/src/api/ lwip/src/core/ lwip/src/netif/ lwip/src/core/ipv4/ lwip/src/apps/sntp/ \
-          $(PLATFORM_DIR) $(APP_DIR) platform-freertos/ lwip/contrib/ports/freertos/ FreeRTOS/ FreeRTOS/portable/GCC/ARM926EJ-S/ FreeRTOS/portable/MemMang/
+          $(PLATFORM_DIR) $(APP_DIR) platform-freertos/ lwip/contrib/ports/freertos/ FreeRTOS/ \
+          FreeRTOS/portable/GCC/ARM926EJ-S/ FreeRTOS/portable/MemMang/
 else
 vpath %.c lwip/src/api/ lwip/src/core/ lwip/src/netif/ lwip/src/core/ipv4/ lwip/src/apps/sntp/ \
           $(PLATFORM_DIR) $(APP_DIR)
