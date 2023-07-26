@@ -155,9 +155,7 @@ static void sntp_set_system_time(u32_t sec)
 
 /* Global network config settings. */
 typedef struct {
-#if LWIP_DHCP
-  unsigned int ntp_mode;				/* 1 = static ntp servers, 0 = dhcp */
-#endif
+  unsigned int ntp_mode;				/* 2 = ntp off, 1 = static ntp servers, 0 = dhcp */
 
   ip4_addr_t ntp1;
   ip4_addr_t ntp2;
@@ -166,6 +164,7 @@ typedef struct {
 #if 0
   ip4_addr_t dns1;
   ip4_addr_t dns2;
+  ip4_addr_t dns3;
 #endif
 } net_config_t;
 
@@ -173,16 +172,18 @@ static void net_config_init (net_config_t *net_config)
 {
 #if LWIP_SNTP
   /* sntp_setoperatingmode(SNTP_OPMODE_POLL); This is already default and never changed. */
+  if (net_config->ntp_mode != 2U) {
 #if LWIP_DHCP
-  if (net_config->ntp_mode == 0U) {
-    sntp_servermode_dhcp(1);
-  } else
+    if (net_config->ntp_mode == 0U) {
+      sntp_servermode_dhcp(1);
+    } else
 #endif
-  {
-    /* sntp_setserver(0, netif_ip_gw4(netif_default)); */
-    sntp_setserver(0, &net_config->ntp1);
-    sntp_setserver(1, &net_config->ntp2);
-    sntp_setserver(2, &net_config->ntp3);
+    {
+      /* sntp_setserver(0, netif_ip_gw4(netif_default)); */
+      sntp_setserver(0, &net_config->ntp1);
+      sntp_setserver(1, &net_config->ntp2);
+      sntp_setserver(2, &net_config->ntp3);
+    }
   }
 #endif
 }
@@ -370,13 +371,9 @@ static void netdev_config_remove (netdev_config_t *dev, struct netif *netif,
 /* Define global net config: */
 static net_config_t mynet_config = {
 #if 1
-#if LWIP_DHCP
   .ntp_mode = 0,
-#endif
 #else
-#if LWIP_DHCP
   .ntp_mode = 1,
-#endif
   .ntp1 = { MY_IP4_ADDR(10, 0, 2, 2) },
   .ntp2 = { MY_IP4_ADDR(10, 0, 1, 1) }
 #endif
@@ -456,7 +453,9 @@ static void lwip_config_init (void *init_sem)
 
 #if !CONFIG_WAIT_FOR_IP
 #if LWIP_SNTP
-  sntp_init();
+  if (mynet_config.ntp_mode != 2U) {
+    sntp_init();
+  }
 #endif
 #endif
 
