@@ -18,6 +18,7 @@
 
 /* XXX Setup full debugging. Also locking not used until now. */
 /* XXX Test re-initializing of network devices. */
+/* XXX Config for network down needs to be the same as up. Maybe read active state? */
 /* XXX Support several network interfaces. */
 /* XXX Support static config of ntp hostname and use dns to resolve. */
 /* XXX Check exact working of sntp_init() and dhcp answers. */
@@ -189,6 +190,7 @@ static void net_config_init (net_config_t *net_config)
 }
 
 /* What type of network setup? */
+#define NET_NONE 0U
 #define NET_STATIC 1U
 #if LWIP_DHCP
 #define NET_DHCP 3U
@@ -288,7 +290,9 @@ static void netdev_config (netdev_config_t *dev, struct netif *netif,
   (void) memset(netif, '\0', sizeof(struct netif));
 
   mode = get_mode(dev);
-  if (mode == NET_STATIC) {
+  if (mode == NET_NONE) {
+    return;
+  } else if (mode == NET_STATIC) {
 #if LWIP_DHCP
   } else if (MODE_DHCP(mode)) {
     ip4_addr_set_zero(&dev->ipaddr);
@@ -346,7 +350,9 @@ static void netdev_config_remove (netdev_config_t *dev, struct netif *netif,
   struct dhcp *netif_dhcp, struct autoip *netif_autoip)
 {
   unsigned int mode = get_mode(dev);
-  if (mode == NET_STATIC) {
+  if (mode == NET_NONE) {
+    return;
+  } else if (mode == NET_STATIC) {
 #if LWIP_DHCP
   } else if (MODE_DHCP(mode)) {
     dhcp_cleanup(netif);
